@@ -1,0 +1,465 @@
+import { USE_LOCAL_DATA } from "./config";
+import { products } from "./data/product";
+import subCategoriesData from "./subCategories";
+import API from "./axios";
+
+// ======================================================
+// HELPERS
+// ======================================================
+
+const normalizeText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, "");
+
+// ======================================================
+// NORMALIZE IMAGE PATH
+// ======================================================
+
+const normalizeImage = (image) => {
+  if (!image || typeof image !== "string") {
+    return null;
+  }
+
+  const value = image.trim();
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:") ||
+    value.startsWith("/")
+  ) {
+    return value;
+  }
+
+  return `/Products/${value}`;
+};
+
+// ======================================================
+// GET PRODUCT SUBCATEGORY NAME
+// Supports Backend + Local Data Structures
+// ======================================================
+
+const getSubCategoryName = (product) => {
+  if (!product) return "";
+
+  return (
+    product?.subCategoryName ||
+    product?.subcategoryName ||
+    product?.subCategory?.name ||
+    product?.subcategory?.name ||
+    (typeof product?.subCategory === "string"
+      ? product.subCategory
+      : "") ||
+    (typeof product?.subcategory === "string"
+      ? product.subcategory
+      : "")
+  );
+};
+
+// ======================================================
+// GET PRODUCT CATEGORY NAME
+// ======================================================
+
+const getCategoryName = (product) => {
+  if (!product) return "";
+
+  return (
+    product?.categoryName ||
+    product?.category?.name ||
+    (typeof product?.category === "string"
+      ? product.category
+      : "")
+  );
+};
+
+// ======================================================
+// FIND LOCAL PRODUCT BY SUBCATEGORY (+ BRAND AWARE)
+//
+// OLD BEHAVIOUR (BUG):
+//   .find() always returned the FIRST local product
+//   matching the subCategory, so EVERY backend product
+//   in that subCategory (Dell / HP / ASUS monitors etc.)
+//   ended up with the SAME image.
+//
+// NEW BEHAVIOUR:
+//   1) Collect ALL local products in that subCategory.
+//   2) Try to match by brand first (Dell -> Dell image).
+//   3) If no brand match, rotate through the matching
+//      local products using the product id, so different
+//      products at least get different images instead of
+//      all collapsing onto one.
+// ======================================================
+
+const findLocalProductBySubCategory = (backendProduct) => {
+  if (!backendProduct) return null;
+
+  const backendSubCategory =
+    getSubCategoryName(backendProduct);
+
+  if (!backendSubCategory) {
+    return null;
+  }
+
+  const backendBrand = normalizeText(
+    backendProduct?.brand
+  );
+
+  // All local products belonging to the same subcategory
+  const matchingProducts = products.filter(
+    (localProduct) => {
+      const localSubCategory =
+        getSubCategoryName(localProduct);
+
+      return (
+        normalizeText(localSubCategory) ===
+        normalizeText(backendSubCategory)
+      );
+    }
+  );
+
+  if (matchingProducts.length === 0) {
+    return null;
+  }
+
+  // 1) Try exact brand match first
+  if (backendBrand) {
+    const brandMatch = matchingProducts.find(
+      (item) =>
+        normalizeText(item?.brand) === backendBrand
+    );
+
+    if (brandMatch) {
+      return brandMatch;
+    }
+  }
+
+  // 2) No brand match -> rotate deterministically by id
+  //    so different products don't all collapse onto
+  //    the same single image
+  const index =
+    Number(backendProduct?.id || 0) %
+    matchingProducts.length;
+
+  return matchingProducts[index];
+};
+
+// ======================================================
+// MERGE BACKEND PRODUCT WITH LOCAL SUBCATEGORY IMAGE
+// ======================================================
+
+const mergeProductImage = (backendProduct) => {
+  if (!backendProduct) {
+    return backendProduct;
+  }
+
+  // Get backend subcategory
+  const subCategoryName =
+    getSubCategoryName(backendProduct);
+
+  // Find local product having same subcategory (brand aware)
+  const localProduct =
+    findLocalProductBySubCategory(backendProduct);
+
+  // Get image from local product
+  const localImage =
+    normalizeImage(localProduct?.image) ||
+    normalizeImage(localProduct?.imageUrl);
+
+  // Get backend image
+  const backendImage =
+    normalizeImage(backendProduct?.image) ||
+    normalizeImage(backendProduct?.imageUrl);
+
+  // DEBUG
+  console.log("MERGING PRODUCT IMAGE:", {
+    productName: backendProduct?.name,
+    brand: backendProduct?.brand,
+    subCategoryName,
+    localProductFound: localProduct?.name,
+    localProductBrand: localProduct?.brand,
+    localImage,
+    backendImage,
+  });
+
+  return {
+    ...backendProduct,
+
+    // Keep category names properly available
+    categoryName:
+      backendProduct?.categoryName ||
+      getCategoryName(backendProduct),
+
+    subCategoryName:
+      backendProduct?.subCategoryName ||
+      subCategoryName,
+
+    // LOCAL SUBCATEGORY IMAGE FIRST
+    image: localImage || backendImage || null,
+
+    imageUrl: localImage || backendImage || null,
+  };
+};
+
+// ======================================================
+// ALL PRODUCTS
+// ======================================================
+
+export const getProducts = async () => {
+  if (USE_LOCAL_DATA) {
+    return products;
+  }
+
+  try {
+    const res = await API.get("/products/all");
+
+    const backendProducts =
+      res?.data?.data || [];
+
+    console.log(
+      "BACKEND PRODUCTS:",
+      backendProducts
+    );
+
+    const mergedProducts =
+      backendProducts.map(mergeProductImage);
+
+    console.log(
+      "MERGED PRODUCTS:",
+      mergedProducts
+    );
+
+    return mergedProducts;
+  } catch (error) {
+    console.error(
+      "GET PRODUCTS ERROR:",
+      error
+    );
+
+    return [];
+  }
+};
+
+// ======================================================
+// SUBCATEGORIES
+// ======================================================
+
+export const getSubCategories = async (categoryId) => {
+  if (USE_LOCAL_DATA) {
+    return subCategoriesData.filter(
+      (item) =>
+        Number(item.categoryId) ===
+        Number(categoryId)
+    );
+  }
+
+  try {
+    const res = await API.get(
+      `/subcategories/category/${categoryId}`
+    );
+
+    return res?.data?.data || [];
+  } catch (error) {
+    console.error(
+      "GET SUBCATEGORIES ERROR:",
+      error
+    );
+
+    return [];
+  }
+};
+
+// ======================================================
+// PRODUCTS BY SUBCATEGORY
+// ======================================================
+
+export const getProductsBySubCategory = async (name) => {
+  if (USE_LOCAL_DATA) {
+    return products.filter((item) => {
+      const itemSubCategory =
+        getSubCategoryName(item);
+
+      return (
+        normalizeText(itemSubCategory) ===
+        normalizeText(name)
+      );
+    });
+  }
+
+  try {
+    const res = await API.get(
+      `/products/subcategory/${encodeURIComponent(name)}`
+    );
+
+    const backendProducts =
+      res?.data?.data || [];
+
+    console.log(
+      `BACKEND ${name} PRODUCTS:`,
+      backendProducts
+    );
+
+    const mergedProducts =
+      backendProducts.map(mergeProductImage);
+
+    console.log(
+      `MERGED ${name} PRODUCTS:`,
+      mergedProducts
+    );
+
+    return mergedProducts;
+  } catch (error) {
+    console.error(
+      "GET PRODUCTS BY SUBCATEGORY ERROR:",
+      error
+    );
+
+    return [];
+  }
+};
+
+// ======================================================
+// PRODUCT BY ID
+// ======================================================
+
+export const getProductById = async (id) => {
+  if (USE_LOCAL_DATA) {
+    return (
+      products.find(
+        (item) =>
+          Number(item.id) === Number(id)
+      ) || null
+    );
+  }
+
+  try {
+    const res = await API.get(
+      `/products/${id}`
+    );
+
+    const backendProduct =
+      res?.data?.data;
+
+    return mergeProductImage(
+      backendProduct
+    );
+  } catch (error) {
+    console.error(
+      "GET PRODUCT BY ID ERROR:",
+      error
+    );
+
+    return null;
+  }
+};
+
+// ======================================================
+// PRODUCTS BY CATEGORY
+// ======================================================
+
+export const getProductsByCategory = async (
+  categoryName
+) => {
+  const allProducts = await getProducts();
+
+  return allProducts.filter((item) => {
+    const itemCategory =
+      getCategoryName(item);
+
+    return (
+      normalizeText(itemCategory) ===
+      normalizeText(categoryName)
+    );
+  });
+};
+
+// ======================================================
+// SEARCH PRODUCTS
+// ======================================================
+
+export const searchProducts = async (query) => {
+  if (!query || !query.trim()) {
+    return [];
+  }
+
+  const allProducts = await getProducts();
+
+  const searchText =
+    query.toLowerCase().trim();
+
+  return allProducts.filter((product) => {
+    const productName =
+      product?.name?.toLowerCase() || "";
+
+    const brand =
+      product?.brand?.toLowerCase() || "";
+
+    const categoryName =
+      getCategoryName(product).toLowerCase();
+
+    const subCategoryName =
+      getSubCategoryName(product).toLowerCase();
+
+    return (
+      productName.includes(searchText) ||
+      brand.includes(searchText) ||
+      categoryName.includes(searchText) ||
+      subCategoryName.includes(searchText)
+    );
+  });
+};
+
+// ======================================================
+// ADD TO CART
+// ======================================================
+
+export const addToCart = async (product) => {
+  if (USE_LOCAL_DATA) {
+    let cart =
+      JSON.parse(
+        localStorage.getItem("cart")
+      ) || [];
+
+    const exists = cart.find(
+      (item) =>
+        Number(item.id) ===
+        Number(product.id)
+    );
+
+    if (exists) {
+      exists.quantity =
+        (exists.quantity || 1) + 1;
+    } else {
+      cart.push({
+        ...product,
+        quantity: 1,
+      });
+    }
+
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(cart)
+    );
+
+    window.dispatchEvent(
+      new Event("storage")
+    );
+
+    return {
+      success: true,
+    };
+  }
+
+  const response = await API.post(
+    "/cart/add",
+    {
+      userId: 1,
+      productId: product.id,
+      quantity: 1,
+    }
+  );
+
+  return response.data;
+};
