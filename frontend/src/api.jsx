@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:8080", // 🔥 tera backend URL
+  baseURL: "https://shopsphere-backend-production-3877.up.railway.app",
 });
 
 export default API;
