@@ -150,24 +150,65 @@ function Payment() {
     paymentMethod,
     paymentDetails = {}
   ) => {
-    // First try direct userId
+    // ==================================================
+    // GET USER ID
+    // ==================================================
+
     let userId =
       localStorage.getItem("userId");
 
-    // If userId is not directly stored,
-    // try saved user object
-    if (!userId) {
-      const savedUser =
-        JSON.parse(
-          localStorage.getItem("user")
-        ) || null;
+    // ==================================================
+    // FIX:
+    // Login.jsx stores user as "loggedInUser"
+    // ==================================================
 
-      userId =
-        savedUser?.userId ||
-        savedUser?.id ||
-        savedUser?.user?.id ||
-        null;
+    if (!userId) {
+      try {
+        const savedLoggedInUser =
+          JSON.parse(
+            localStorage.getItem("loggedInUser")
+          ) || null;
+
+        userId =
+          savedLoggedInUser?.id ||
+          savedLoggedInUser?.userId ||
+          savedLoggedInUser?.user?.id ||
+          null;
+      } catch (error) {
+        console.error(
+          "Logged In User Parsing Error:",
+          error
+        );
+      }
     }
+
+    // ==================================================
+    // KEEP OLD "user" FALLBACK ALSO
+    // ==================================================
+
+    if (!userId) {
+      try {
+        const savedUser =
+          JSON.parse(
+            localStorage.getItem("user")
+          ) || null;
+
+        userId =
+          savedUser?.userId ||
+          savedUser?.id ||
+          savedUser?.user?.id ||
+          null;
+      } catch (error) {
+        console.error(
+          "User Parsing Error:",
+          error
+        );
+      }
+    }
+
+    // ==================================================
+    // USER ID VALIDATION
+    // ==================================================
 
     if (!userId) {
       throw new Error(
@@ -179,6 +220,10 @@ function Payment() {
       "Creating ShopSphere Order for user:",
       userId
     );
+
+    // ==================================================
+    // CREATE BACKEND ORDER
+    // ==================================================
 
     const response = await axios.post(
       `https://shopsphere-backend-production-3877.up.railway.app/orders/place/${userId}`
@@ -198,13 +243,18 @@ function Payment() {
       );
     }
 
+    // ==================================================
+    // LOCAL ORDERS
+    // ==================================================
+
     const orders =
       JSON.parse(
         localStorage.getItem("orders")
       ) || [];
 
     const newOrder = {
-      // IMPORTANT: use the real DB order ID.
+      // IMPORTANT:
+      // Use the real DB order ID.
       // Never use Date.now() here.
       id: backendOrder.orderId,
 
@@ -214,9 +264,13 @@ function Payment() {
       paymentDetails,
 
       subtotal: priceDetails.subtotal,
-      discount: priceDetails.discount,
+
+      discount:
+        priceDetails.discount,
+
       deliveryCharge:
         priceDetails.deliveryCharge,
+
       totalAmount:
         priceDetails.totalAmount,
 
@@ -228,7 +282,10 @@ function Payment() {
         new Date().toISOString(),
     };
 
-    // Replace an existing local copy of the same DB order instead of duplicating it.
+    // ==================================================
+    // REPLACE EXISTING LOCAL ORDER
+    // ==================================================
+
     const existingIndex =
       orders.findIndex(
         (existingOrder) =>
@@ -274,6 +331,7 @@ function Payment() {
       );
 
       localStorage.removeItem("cart");
+
       localStorage.removeItem(
         "checkoutSummary"
       );
@@ -557,7 +615,9 @@ function Payment() {
         "COD Order Error:",
         error
       );
-      // completeOrder already shows the backend error and resets processing.
+
+      // completeOrder already shows
+      // backend error and resets processing.
     }
   };
 

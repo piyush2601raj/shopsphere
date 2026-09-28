@@ -55,37 +55,59 @@ const Login = () => {
 
       console.log("LOGIN API RESPONSE:", response.data);
 
-      const loggedInUser = response.data;
+      // Supports both:
+      // 1. Direct user object
+      // 2. { data: user }
+      const loggedInUser =
+        response.data?.data || response.data;
 
       if (!loggedInUser || !loggedInUser.id) {
         throw new Error("Invalid user response from server");
       }
 
+      // Store complete logged-in user
       localStorage.setItem(
         "loggedInUser",
         JSON.stringify(loggedInUser)
       );
 
-      localStorage.setItem("userId", String(loggedInUser.id));
-      localStorage.setItem("isLoggedIn", "true");
+      // Store user ID separately
+      localStorage.setItem(
+        "userId",
+        String(loggedInUser.id)
+      );
+
+      localStorage.setItem(
+        "isLoggedIn",
+        "true"
+      );
 
       if (rememberMe) {
         localStorage.setItem(
           "rememberedEmail",
-          loggedInUser.email
+          loggedInUser.email || normalizedEmail
         );
       } else {
         localStorage.removeItem("rememberedEmail");
       }
 
-      window.dispatchEvent(new Event("authChanged"));
-      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(
+        new Event("authChanged")
+      );
+
+      window.dispatchEvent(
+        new Event("storage")
+      );
 
       alert(`Welcome ${loggedInUser.name} 👋`);
 
-      navigate(redirectPath, { replace: true });
+      navigate(redirectPath, {
+        replace: true,
+      });
+
     } catch (error) {
       console.error("LOGIN ERROR:", error);
+
       console.error(
         "LOGIN BACKEND RESPONSE:",
         error.response?.data
@@ -97,6 +119,7 @@ const Login = () => {
         "Login failed. Please try again.";
 
       setError(errorMessage);
+
     } finally {
       setLoading(false);
     }
@@ -246,18 +269,29 @@ const Login = () => {
             alignItems: "center",
           }}
         >
-          <div style={{ width: "100%", maxWidth: "440px", margin: "auto" }}>
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "440px",
+              margin: "auto",
+            }}
+          >
             <div className="mb-4">
               <p
                 className="text-primary fw-semibold mb-2"
-                style={{ letterSpacing: "0.5px" }}
+                style={{
+                  letterSpacing: "0.5px",
+                }}
               >
                 WELCOME BACK
               </p>
 
               <h2
                 className="fw-bold mb-2"
-                style={{ fontSize: "34px", color: "#172033" }}
+                style={{
+                  fontSize: "34px",
+                  color: "#172033",
+                }}
               >
                 Sign in to your account
               </h2>
@@ -307,7 +341,9 @@ const Login = () => {
                       setEmail(event.target.value);
                       setError("");
                     }}
-                    style={{ fontSize: "15px" }}
+                    style={{
+                      fontSize: "15px",
+                    }}
                   />
                 </div>
               </div>
@@ -328,7 +364,11 @@ const Login = () => {
 
                   <input
                     id="loginPassword"
-                    type={showPassword ? "text" : "password"}
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
                     className="form-control"
                     placeholder="Enter your password"
                     value={password}
@@ -337,14 +377,18 @@ const Login = () => {
                       setPassword(event.target.value);
                       setError("");
                     }}
-                    style={{ fontSize: "15px" }}
+                    style={{
+                      fontSize: "15px",
+                    }}
                   />
 
                   <button
                     type="button"
                     className="btn btn-outline-secondary"
                     onClick={() =>
-                      setShowPassword((previous) => !previous)
+                      setShowPassword(
+                        (previous) => !previous
+                      )
                     }
                     aria-label={
                       showPassword
@@ -352,7 +396,9 @@ const Login = () => {
                         : "Show password"
                     }
                   >
-                    {showPassword ? "🙈" : "👁️"}
+                    {showPassword
+                      ? "🙈"
+                      : "👁️"}
                   </button>
                 </div>
               </div>
@@ -366,14 +412,18 @@ const Login = () => {
                     id="rememberMe"
                     checked={rememberMe}
                     onChange={(event) =>
-                      setRememberMe(event.target.checked)
+                      setRememberMe(
+                        event.target.checked
+                      )
                     }
                   />
 
                   <label
                     className="form-check-label text-muted"
                     htmlFor="rememberMe"
-                    style={{ fontSize: "14px" }}
+                    style={{
+                      fontSize: "14px",
+                    }}
                   >
                     Remember me
                   </label>
@@ -382,7 +432,9 @@ const Login = () => {
                 <Link
                   to="/forgot-password"
                   className="text-primary text-decoration-none fw-semibold"
-                  style={{ fontSize: "14px" }}
+                  style={{
+                    fontSize: "14px",
+                  }}
                 >
                   Forgot Password?
                 </Link>
