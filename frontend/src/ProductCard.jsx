@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { addToCart } from "./dataService";
 import ProductImage from "./ProductImage";
 
 const ProductCard = ({ product }) => {
@@ -16,20 +15,52 @@ const ProductCard = ({ product }) => {
   // ======================================================
   // ADD TO CART
   // LOGIN CHECK REMOVED
+  // BACKEND API REMOVED
   // ======================================================
 
-  const handleAddToCart = async (event) => {
+  const handleAddToCart = (event) => {
     event.stopPropagation();
 
     try {
-      await addToCart(product);
+      const cart =
+        JSON.parse(localStorage.getItem("cart")) || [];
 
-      // Notify Navbar about cart change
+      const existingProduct = cart.find(
+        (item) =>
+          String(item.id) === String(product.id)
+      );
+
+      let updatedCart;
+
+      if (existingProduct) {
+        updatedCart = cart.map((item) =>
+          String(item.id) === String(product.id)
+            ? {
+                ...item,
+                quantity:
+                  (Number(item.quantity) || 1) + 1,
+              }
+            : item
+        );
+      } else {
+        updatedCart = [
+          ...cart,
+          {
+            ...product,
+            quantity: 1,
+          },
+        ];
+      }
+
+      localStorage.setItem(
+        "cart",
+        JSON.stringify(updatedCart)
+      );
+
       window.dispatchEvent(
         new Event("cartChanged")
       );
 
-      // Keep existing storage event
       window.dispatchEvent(
         new Event("storage")
       );
@@ -79,7 +110,6 @@ const ProductCard = ({ product }) => {
       JSON.stringify(updatedWishlist)
     );
 
-    // Notify Navbar about wishlist change
     window.dispatchEvent(
       new Event("wishlistChanged")
     );
@@ -110,19 +140,11 @@ const ProductCard = ({ product }) => {
       className="card h-100 border-0 product-card"
       onClick={handleProductClick}
     >
-      {/* ================================================= */}
-      {/* PRODUCT IMAGE SECTION */}
-      {/* ================================================= */}
-
       <div className="product-image-container">
-
-        {/* DISCOUNT */}
 
         <span className="product-discount-badge">
           20% OFF
         </span>
-
-        {/* WISHLIST */}
 
         <button
           type="button"
@@ -133,8 +155,6 @@ const ProductCard = ({ product }) => {
           ♡
         </button>
 
-        {/* IMPORTANT: PRODUCT IMAGE COMPONENT */}
-
         <ProductImage
           product={product}
           height="190px"
@@ -142,13 +162,7 @@ const ProductCard = ({ product }) => {
 
       </div>
 
-      {/* ================================================= */}
-      {/* PRODUCT DETAILS */}
-      {/* ================================================= */}
-
       <div className="card-body d-flex flex-column">
-
-        {/* CATEGORY */}
 
         <small className="product-category">
           {product?.categoryName ||
@@ -157,16 +171,12 @@ const ProductCard = ({ product }) => {
             "ShopSphere"}
         </small>
 
-        {/* PRODUCT NAME */}
-
         <h6
           className="product-title"
           title={product?.name}
         >
           {product?.name || "Product"}
         </h6>
-
-        {/* RATING */}
 
         <div className="d-flex align-items-center mb-2">
 
@@ -180,8 +190,6 @@ const ProductCard = ({ product }) => {
 
         </div>
 
-        {/* PRICE */}
-
         <div className="d-flex align-items-center gap-2 mb-1">
 
           <h5 className="product-price mb-0">
@@ -194,13 +202,9 @@ const ProductCard = ({ product }) => {
 
         </div>
 
-        {/* DELIVERY */}
-
         <p className="product-delivery mb-3">
           Free Delivery
         </p>
-
-        {/* ADD TO CART */}
 
         <button
           type="button"
@@ -211,10 +215,6 @@ const ProductCard = ({ product }) => {
         </button>
 
       </div>
-
-      {/* ================================================= */}
-      {/* CSS */}
-      {/* ================================================= */}
 
       <style>{`
 
@@ -233,10 +233,6 @@ const ProductCard = ({ product }) => {
           box-shadow:
             0 8px 24px rgba(0, 0, 0, 0.12);
         }
-
-        /* ============================================== */
-        /* IMAGE */
-        /* ============================================== */
 
         .product-image-container {
           height: 220px;
@@ -264,10 +260,6 @@ const ProductCard = ({ product }) => {
           transform: scale(1.04);
         }
 
-        /* ============================================== */
-        /* DISCOUNT BADGE */
-        /* ============================================== */
-
         .product-discount-badge {
           position: absolute;
           top: 10px;
@@ -280,10 +272,6 @@ const ProductCard = ({ product }) => {
           font-size: 11px;
           font-weight: 700;
         }
-
-        /* ============================================== */
-        /* WISHLIST */
-        /* ============================================== */
 
         .product-wishlist-icon {
           position: absolute;
@@ -316,27 +304,15 @@ const ProductCard = ({ product }) => {
           transform: scale(1.08);
         }
 
-        /* ============================================== */
-        /* CARD BODY */
-        /* ============================================== */
-
         .product-card .card-body {
           padding: 14px;
         }
-
-        /* ============================================== */
-        /* CATEGORY */
-        /* ============================================== */
 
         .product-category {
           color: #6b7280;
           font-size: 12px;
           margin-bottom: 6px;
         }
-
-        /* ============================================== */
-        /* PRODUCT TITLE */
-        /* ============================================== */
 
         .product-title {
           min-height: 40px;
@@ -354,10 +330,6 @@ const ProductCard = ({ product }) => {
           line-height: 20px;
         }
 
-        /* ============================================== */
-        /* RATING */
-        /* ============================================== */
-
         .product-rating {
           padding: 3px 7px;
 
@@ -369,10 +341,6 @@ const ProductCard = ({ product }) => {
           font-size: 12px;
           font-weight: 600;
         }
-
-        /* ============================================== */
-        /* PRICE */
-        /* ============================================== */
 
         .product-price {
           color: #111827;
@@ -386,29 +354,17 @@ const ProductCard = ({ product }) => {
           font-size: 13px;
         }
 
-        /* ============================================== */
-        /* DELIVERY */
-        /* ============================================== */
-
         .product-delivery {
           color: #198754;
           font-size: 13px;
           font-weight: 600;
         }
 
-        /* ============================================== */
-        /* ADD TO CART */
-        /* ============================================== */
-
         .product-cart-button {
           width: 100%;
           border-radius: 7px;
           font-weight: 600;
         }
-
-        /* ============================================== */
-        /* MOBILE RESPONSIVE */
-        /* ============================================== */
 
         @media (max-width: 768px) {
 
