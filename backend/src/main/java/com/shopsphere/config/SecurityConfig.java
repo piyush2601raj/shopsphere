@@ -1,12 +1,18 @@
 package com.shopsphere.config;
 
-import com.shopsphere.security.JwtFilter;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
+
+import com.shopsphere.security.JwtFilter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -20,55 +26,100 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http)
+            throws Exception {
 
         http
+
+            // =========================
+            // CSRF
+            // =========================
             .csrf(csrf -> csrf.disable())
 
-            // ⚠️ IMPORTANT: enable cors instead of disabling
-            .cors(cors -> cors.disable())
+            // =========================
+            // CORS
+            // Uses CorsConfig.java
+            // =========================
+            .cors(cors -> {})
 
+            // =========================
+            // SESSION
+            // =========================
             .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
             )
 
+            // =========================
+            // AUTHORIZATION
+            // =========================
             .authorizeHttpRequests(auth -> auth
+
+                // CORS PREFLIGHT
+                .requestMatchers(
+                    HttpMethod.OPTIONS,
+                    "/**"
+                ).permitAll()
 
                 // =========================
                 // PUBLIC APIs
                 // =========================
                 .requestMatchers("/auth/**").permitAll()
+
                 .requestMatchers("/products/**").permitAll()
+
                 .requestMatchers("/categories/**").permitAll()
+
+                .requestMatchers("/subcategories/**").permitAll()
+
                 .requestMatchers("/api/product-images/**").permitAll()
+
                 .requestMatchers("/api/admin/login").permitAll()
+
+                .requestMatchers("/payments/**").permitAll()
+
+                .requestMatchers("/api/reviews/product/**").permitAll()
 
                 // =========================
                 // ADMIN APIs
                 // =========================
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers("/api/admin/**")
+                .hasAuthority("ROLE_ADMIN")
 
                 // =========================
-                // PROTECTED APIs (JWT required logically, but not blocked at filter level)
+                // OTHER APIs
                 // =========================
                 .requestMatchers("/users/**").permitAll()
+
                 .requestMatchers("/orders/**").permitAll()
+
                 .requestMatchers("/cart/**").permitAll()
-                .requestMatchers("/payments/**").permitAll()
+
                 .requestMatchers("/api/wishlist/**").permitAll()
+
                 .requestMatchers("/api/address/**").permitAll()
 
                 // =========================
-                // FALLBACK (IMPORTANT FIX)
+                // FALLBACK
                 // =========================
                 .anyRequest().permitAll()
             )
 
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            // =========================
+            // JWT FILTER
+            // =========================
+            .addFilterBefore(
+                jwtFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
 
         return http.build();
     }
 
+    // =========================
+    // PASSWORD ENCODER
+    // =========================
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
