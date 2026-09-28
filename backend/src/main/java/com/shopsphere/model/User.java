@@ -1,9 +1,23 @@
 package com.shopsphere.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "users")
@@ -19,12 +33,18 @@ public class User {
     private String email;
 
     // =========================
-    // PASSWORD - HIDDEN FROM JSON
+    // PASSWORD
     // =========================
+    // Frontend se password receive hoga
+    // Lekin response JSON mein password nahi jayega
 
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
+
+    // =========================
+    // ROLE
+    // =========================
 
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -32,9 +52,9 @@ public class User {
     // =========================
     // CART
     // =========================
-
     // Prevent circular JSON:
     // User -> Cart -> User -> Cart -> ...
+
     @JsonIgnore
     @OneToOne(
         mappedBy = "user",
@@ -92,7 +112,11 @@ public class User {
     }
 
     public void setEmail(String email) {
-        this.email = email.trim().toLowerCase();
+        if (email != null) {
+            this.email = email.trim().toLowerCase();
+        } else {
+            this.email = null;
+        }
     }
 
     public String getPassword() {
