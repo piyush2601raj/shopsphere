@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getProducts } from "./dataService";
 import ProductCard from "./ProductCard";
 
-import laptopImg from "./laptop.png";
+import laptopImg from "./Laptop.png";
 import mobileImg from "./mobile.png";
 import shoesImg from "./shoes.png";
 import furnitureImg from "./Furnitures.png";
