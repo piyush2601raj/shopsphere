@@ -150,29 +150,58 @@ function Payment() {
     paymentMethod,
     paymentDetails = {}
   ) => {
-    const userId = localStorage.getItem("userId");
+    // First try direct userId
+    let userId =
+      localStorage.getItem("userId");
 
+    // If userId is not directly stored,
+    // try saved user object
     if (!userId) {
-      throw new Error("User ID not found. Please login again.");
+      const savedUser =
+        JSON.parse(
+          localStorage.getItem("user")
+        ) || null;
+
+      userId =
+        savedUser?.userId ||
+        savedUser?.id ||
+        savedUser?.user?.id ||
+        null;
     }
 
-    console.log("Creating ShopSphere Order for user:", userId);
+    if (!userId) {
+      throw new Error(
+        "User ID not found. Please login again."
+      );
+    }
 
-    const response = await axios.post(
-      `http://localhost:8080/orders/place/${userId}`
+    console.log(
+      "Creating ShopSphere Order for user:",
+      userId
     );
 
-    console.log("ShopSphere Order Response:", response.data);
+    const response = await axios.post(
+      `https://shopsphere-backend-production-3877.up.railway.app/orders/place/${userId}`
+    );
 
-    const backendOrder = response.data?.data;
+    console.log(
+      "ShopSphere Order Response:",
+      response.data
+    );
+
+    const backendOrder =
+      response.data?.data;
 
     if (!backendOrder?.orderId) {
-      throw new Error("Backend did not return a valid order ID.");
+      throw new Error(
+        "Backend did not return a valid order ID."
+      );
     }
 
     const orders =
-      JSON.parse(localStorage.getItem("orders")) ||
-      [];
+      JSON.parse(
+        localStorage.getItem("orders")
+      ) || [];
 
     const newOrder = {
       // IMPORTANT: use the real DB order ID.
@@ -186,18 +215,26 @@ function Payment() {
 
       subtotal: priceDetails.subtotal,
       discount: priceDetails.discount,
-      deliveryCharge: priceDetails.deliveryCharge,
-      totalAmount: priceDetails.totalAmount,
+      deliveryCharge:
+        priceDetails.deliveryCharge,
+      totalAmount:
+        priceDetails.totalAmount,
 
-      status: backendOrder.status || "PENDING",
-      orderDate: backendOrder.orderDate || new Date().toISOString(),
+      status:
+        backendOrder.status || "PENDING",
+
+      orderDate:
+        backendOrder.orderDate ||
+        new Date().toISOString(),
     };
 
     // Replace an existing local copy of the same DB order instead of duplicating it.
-    const existingIndex = orders.findIndex(
-      (existingOrder) =>
-        String(existingOrder.id) === String(newOrder.id)
-    );
+    const existingIndex =
+      orders.findIndex(
+        (existingOrder) =>
+          String(existingOrder.id) ===
+          String(newOrder.id)
+      );
 
     if (existingIndex >= 0) {
       orders[existingIndex] = newOrder;
@@ -220,12 +257,16 @@ function Payment() {
     paymentDetails = {}
   ) => {
     try {
-      const order = await createBackendOrder(
-        paymentMethod,
-        paymentDetails
-      );
+      const order =
+        await createBackendOrder(
+          paymentMethod,
+          paymentDetails
+        );
 
-      console.log("FINAL SHOPSPHERE ORDER:", order);
+      console.log(
+        "FINAL SHOPSPHERE ORDER:",
+        order
+      );
 
       localStorage.setItem(
         "latestOrder",
@@ -233,18 +274,30 @@ function Payment() {
       );
 
       localStorage.removeItem("cart");
-      localStorage.removeItem("checkoutSummary");
+      localStorage.removeItem(
+        "checkoutSummary"
+      );
 
-      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(
+        new Event("storage")
+      );
 
       navigate("/order-success");
     } catch (error) {
-      console.error("Order Creation Error:", error);
-      console.error("Backend Response:", error.response?.data);
+      console.error(
+        "Order Creation Error:",
+        error
+      );
+
+      console.error(
+        "Backend Response:",
+        error.response?.data
+      );
 
       alert(
         error.response?.data?.message ||
-        (typeof error.response?.data === "string"
+        (typeof error.response?.data ===
+        "string"
           ? error.response.data
           : null) ||
         error.message ||
@@ -252,6 +305,7 @@ function Payment() {
       );
 
       setProcessing(false);
+
       throw error;
     }
   };
@@ -264,7 +318,8 @@ function Payment() {
 
       // LOAD RAZORPAY
 
-      const loaded = await loadRazorpay();
+      const loaded =
+        await loadRazorpay();
 
       if (!loaded) {
         alert(
@@ -283,9 +338,10 @@ function Payment() {
       );
 
       const response = await axios.post(
-        "http://localhost:8080/payments/create-order",
+        "https://shopsphere-backend-production-3877.up.railway.app/payments/create-order",
         {
-          amount: priceDetails.totalAmount,
+          amount:
+            priceDetails.totalAmount,
         }
       );
 
@@ -294,7 +350,8 @@ function Payment() {
         response.data
       );
 
-      const razorpayOrder = response.data;
+      const razorpayOrder =
+        response.data;
 
       // VALIDATE BACKEND RESPONSE
 
@@ -322,23 +379,28 @@ function Payment() {
 
         key: "rzp_test_SiUqjfu32UIx4B",
 
-        amount: razorpayOrder.amount,
+        amount:
+          razorpayOrder.amount,
 
         currency:
-          razorpayOrder.currency || "INR",
+          razorpayOrder.currency ||
+          "INR",
 
         name: "ShopSphere",
 
-        description: "ShopSphere Order Payment",
+        description:
+          "ShopSphere Order Payment",
 
-        order_id: razorpayOrder.id,
+        order_id:
+          razorpayOrder.id,
 
         // ================= CUSTOMER INFO =================
 
         prefill: {
           name: address?.name || "",
 
-          contact: address?.phone || "",
+          contact:
+            address?.phone || "",
 
           email: "",
         },
@@ -358,7 +420,7 @@ function Payment() {
 
             const verifyResponse =
               await axios.post(
-                "http://localhost:8080/payments/verify",
+                "https://shopsphere-backend-production-3877.up.railway.app/payments/verify",
                 {
                   orderId:
                     paymentResponse.razorpay_order_id,
@@ -382,13 +444,16 @@ function Payment() {
               verifyResponse.data?.status ===
               "SUCCESS"
             ) {
-              await completeOrder("ONLINE", {
-                razorpayOrderId:
-                  paymentResponse.razorpay_order_id,
+              await completeOrder(
+                "ONLINE",
+                {
+                  razorpayOrderId:
+                    paymentResponse.razorpay_order_id,
 
-                razorpayPaymentId:
-                  paymentResponse.razorpay_payment_id,
-              });
+                  razorpayPaymentId:
+                    paymentResponse.razorpay_payment_id,
+                }
+              );
             } else {
               alert(
                 "Payment verification failed."
@@ -446,7 +511,7 @@ function Payment() {
 
           alert(
             response.error?.description ||
-              "Payment failed."
+            "Payment failed."
           );
 
           setProcessing(false);
@@ -488,7 +553,10 @@ function Payment() {
     try {
       await completeOrder("COD");
     } catch (error) {
-      console.error("COD Order Error:", error);
+      console.error(
+        "COD Order Error:",
+        error
+      );
       // completeOrder already shows the backend error and resets processing.
     }
   };
@@ -720,7 +788,6 @@ function Payment() {
                 {/* ================= ONLINE INFO ================= */}
 
                 {method === "ONLINE" && (
-
                   <div className="alert alert-info">
 
                     <h6 className="fw-bold">
@@ -736,7 +803,6 @@ function Payment() {
                     </p>
 
                   </div>
-
                 )}
 
                 {/* ================= COD ================= */}
