@@ -85,7 +85,8 @@ const ProductCard = ({ product }) => {
 
     if (!checkLogin()) {
       alert(
-        "Please Login To Add Products To Wishlist"
+        
+         "To Add Products To Wishlist"
       );
 
       redirectToLogin();

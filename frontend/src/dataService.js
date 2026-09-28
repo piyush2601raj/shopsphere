@@ -263,6 +263,7 @@ export const getProducts = async () => {
     return [];
   }
 };
+
 // ======================================================
 // SUBCATEGORIES
 // ======================================================
@@ -363,6 +364,7 @@ export const getProductsBySubCategory = async (
     return [];
   }
 };
+
 // ======================================================
 // PRODUCT BY ID
 // ======================================================
@@ -435,6 +437,7 @@ export const getProductsByCategory = async (
     }
   );
 };
+
 // ======================================================
 // SEARCH PRODUCTS
 // SMART SEARCH
@@ -493,7 +496,6 @@ export const searchProducts = async (
         parsedPrice
       )
     ) {
-
       maxPrice =
         parsedPrice;
     }
@@ -501,12 +503,6 @@ export const searchProducts = async (
 
   // ====================================================
   // REMOVE PRICE PART
-  //
-  // laptop under 70000
-  //
-  // becomes:
-  //
-  // laptop
   // ====================================================
 
   const keywordText =
@@ -569,9 +565,7 @@ export const searchProducts = async (
       products.filter(
         (product) => {
 
-          // --------------------------------------------
           // PRICE FILTER
-          // --------------------------------------------
 
           if (
             maxPrice !== null &&
@@ -582,9 +576,7 @@ export const searchProducts = async (
             return false;
           }
 
-          // --------------------------------------------
           // IF NO KEYWORD
-          // --------------------------------------------
 
           if (
             searchWords.length === 0
@@ -592,9 +584,7 @@ export const searchProducts = async (
             return true;
           }
 
-          // --------------------------------------------
           // PRODUCT FIELDS
-          // --------------------------------------------
 
           const productName =
             product?.name
@@ -621,16 +611,12 @@ export const searchProducts = async (
               ?.toLowerCase() ||
             "";
 
-          // --------------------------------------------
           // SEARCHABLE TEXT
-          // --------------------------------------------
 
           const searchableText =
             `${productName} ${brand} ${categoryName} ${subCategoryName} ${description}`;
 
-          // --------------------------------------------
           // ALL SEARCH WORDS MUST MATCH
-          // --------------------------------------------
 
           return searchWords.every(
             (word) =>
@@ -717,8 +703,10 @@ export const searchProducts = async (
     return [];
   }
 };
+
 // ======================================================
 // ADD TO CART
+// GUEST CART - NO LOGIN REQUIRED
 // ======================================================
 
 export const addToCart = async (
@@ -729,152 +717,23 @@ export const addToCart = async (
     throw new Error("Invalid product");
   }
 
-  // ====================================================
-  // LOCAL DATA MODE
-  // ====================================================
-
-  if (USE_LOCAL_DATA) {
-
-    let cart =
-      JSON.parse(
-        localStorage.getItem("cart")
-      ) || [];
-
-    const exists =
-      cart.find(
-        (item) =>
-          Number(item.id) ===
-          Number(product.id)
-      );
-
-    if (exists) {
-
-      exists.quantity =
-        (exists.quantity || 1) +
-        1;
-
-    } else {
-
-      cart.push({
-        ...product,
-        quantity: 1,
-      });
-    }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(cart)
-    );
-
-    // Notify Navbar + Cart
-    window.dispatchEvent(
-      new Event("cartChanged")
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-
-    window.dispatchEvent(
-      new Event("storage")
-    );
-
-    return {
-      success: true,
-    };
-  }
-
-  // =====================================================
-  // GET LOGGED-IN USER ID
-  // =====================================================
-
-  let userId =
-    localStorage.getItem("userId");
-
-  if (!userId) {
-
-    const storedUser =
-      localStorage.getItem("user") ||
-      localStorage.getItem("currentUser") ||
-      localStorage.getItem("loggedInUser");
-
-    if (storedUser) {
-
-      try {
-
-        const parsedUser =
-          JSON.parse(storedUser);
-
-        userId =
-          parsedUser?.id ??
-          parsedUser?.userId ??
-          parsedUser?.user?.id ??
-          parsedUser?.user?.userId;
-
-      } catch (error) {
-
-        console.error(
-          "Could not parse user:",
-          error
-        );
-      }
-    }
-  }
-
-  // =====================================================
-  // USER MUST BE LOGGED IN
-  // =====================================================
-
-  if (
-    userId === null ||
-    userId === undefined ||
-    userId === ""
-  ) {
-
-    throw new Error(
-      "Please login before adding products to cart."
-    );
-  }
-
-  // =====================================================
-  // ADD TO BACKEND CART
-  // =====================================================
-
   try {
 
-    const response =
-      await API.post(
-        "/cart/add",
-        null,
-        {
-          params: {
-            userId: Number(userId),
-            productId: Number(product.id),
-            quantity: 1,
-          },
-        }
-      );
+    let cart = [];
 
-    console.log(
-      "ADD TO CART SUCCESS:",
-      response.data
-    );
-
-    // =================================================
-    // UPDATE FRONTEND LOCAL CART
-    // =================================================
-
-    let localCart = [];
+    // ==================================================
+    // GET EXISTING LOCAL CART
+    // ==================================================
 
     try {
 
-      localCart =
+      cart =
         JSON.parse(
           localStorage.getItem("cart")
         ) || [];
 
-      if (!Array.isArray(localCart)) {
-        localCart = [];
+      if (!Array.isArray(cart)) {
+        cart = [];
       }
 
     } catch (error) {
@@ -884,51 +743,60 @@ export const addToCart = async (
         error
       );
 
-      localCart = [];
+      cart = [];
     }
 
-    // =================================================
+    // ==================================================
     // CHECK WHETHER PRODUCT ALREADY EXISTS
-    // =================================================
+    // ==================================================
 
     const existingProduct =
-      localCart.find(
+      cart.find(
         (item) =>
           Number(item.id) ===
           Number(product.id)
       );
 
+    // ==================================================
+    // INCREASE QUANTITY
+    // ==================================================
+
     if (existingProduct) {
 
       existingProduct.quantity =
-        (Number(existingProduct.quantity) || 1) +
-        1;
+        (Number(
+          existingProduct.quantity
+        ) || 1) + 1;
 
     } else {
 
-      localCart.push({
+      // ==================================================
+      // ADD NEW PRODUCT
+      // ==================================================
+
+      cart.push({
         ...product,
         quantity: 1,
       });
     }
 
-    // =================================================
-    // SAVE UPDATED CART
-    // =================================================
+    // ==================================================
+    // SAVE CART
+    // ==================================================
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(localCart)
+      JSON.stringify(cart)
     );
 
     console.log(
-      "FRONTEND CART UPDATED:",
-      localCart
+      "GUEST CART UPDATED:",
+      cart
     );
 
-    // =================================================
+    // ==================================================
     // NOTIFY NAVBAR + CART
-    // =================================================
+    // ==================================================
 
     window.dispatchEvent(
       new Event("cartChanged")
@@ -942,26 +810,19 @@ export const addToCart = async (
       new Event("storage")
     );
 
-    return response.data;
+    // ==================================================
+    // SUCCESS
+    // ==================================================
+
+    return {
+      success: true,
+      message: "Product added to cart",
+    };
 
   } catch (error) {
 
     console.error(
-      "ADD TO CART FAILED"
-    );
-
-    console.error(
-      "STATUS:",
-      error.response?.status
-    );
-
-    console.error(
-      "BACKEND ERROR:",
-      error.response?.data
-    );
-
-    console.error(
-      "FULL ERROR:",
+      "ADD TO CART FAILED:",
       error
     );
 
