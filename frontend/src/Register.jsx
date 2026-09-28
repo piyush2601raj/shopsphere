@@ -85,9 +85,9 @@ const Register = () => {
 
     try {
       // IMPORTANT:
-      // Register user in Spring Boot database
+      // Backend endpoint is /users/register
       const response = await axios.post(
-        "https://shopsphere-backend-production-3877.up.railway.app/users/signup",
+        "https://shopsphere-backend-production-c62b.up.railway.app/users/register",
         {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -105,7 +105,6 @@ const Register = () => {
 
       alert("Account Created Successfully");
 
-      // Go to login page
       navigate("/login");
 
     } catch (error) {
@@ -118,8 +117,6 @@ const Register = () => {
         "Backend Response:",
         error.response?.data
       );
-
-      // ---------- BACKEND ERROR ----------
 
       const backendMessage =
         error.response?.data?.message ||
