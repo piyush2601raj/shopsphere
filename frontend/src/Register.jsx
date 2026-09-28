@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -31,10 +32,12 @@ const Register = () => {
 
   // ---------------- REGISTER ----------------
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
 
     setError("");
+
+    // ---------- VALIDATION ----------
 
     if (!formData.name.trim()) {
       setError("Please enter your full name.");
@@ -71,61 +74,68 @@ const Register = () => {
       return;
     }
 
-    if (
-      formData.password !==
-      formData.confirmPassword
-    ) {
+    if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
+    // ---------- START LOADING ----------
+
     setLoading(true);
 
-    // Temporary frontend registration.
-    // Later this will be replaced by Spring Boot API.
-
-    const registeredUsers =
-      JSON.parse(
-        localStorage.getItem("registeredUsers")
-      ) || [];
-
-    const userAlreadyExists =
-      registeredUsers.some(
-        (user) =>
-          user.email.toLowerCase() ===
-          formData.email.toLowerCase()
+    try {
+      // IMPORTANT:
+      // Register user in Spring Boot database
+      const response = await axios.post(
+        "https://shopsphere-backend-production-3877.up.railway.app/users/signup",
+        {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          password: formData.password,
+        }
       );
 
-    if (userAlreadyExists) {
-      setLoading(false);
-      setError(
-        "An account with this email already exists."
+      console.log(
+        "Registration Response:",
+        response.data
       );
-      return;
-    }
 
-    const newUser = {
-      id: Date.now(),
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      password: formData.password,
-    };
-
-    registeredUsers.push(newUser);
-
-    localStorage.setItem(
-      "registeredUsers",
-      JSON.stringify(registeredUsers)
-    );
-
-    setTimeout(() => {
-      setLoading(false);
+      // ---------- SUCCESS ----------
 
       alert("Account Created Successfully");
 
+      // Go to login page
       navigate("/login");
-    }, 800);
+
+    } catch (error) {
+      console.error(
+        "Registration Error:",
+        error
+      );
+
+      console.error(
+        "Backend Response:",
+        error.response?.data
+      );
+
+      // ---------- BACKEND ERROR ----------
+
+      const backendMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        (typeof error.response?.data === "string"
+          ? error.response.data
+          : null);
+
+      setError(
+        backendMessage ||
+        "Unable to create account. Please try again."
+      );
+
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
