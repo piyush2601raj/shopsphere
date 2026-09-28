@@ -3,10 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import ProductImage from "./ProductImage";
 import axios from "axios";
 
-import OrderTimeline from "./components/OrderTimeline";
-import DeliveryDetails from "./components/DeliveryDetails";
-import ReturnRefund from "./components/ReturnRefundFixed";
-
+import OrderTimeline from "./Components/OrderTimeline";
+import DeliveryDetails from "./Components/DeliveryDetails";
+import ReturnRefund from "./Components/ReturnRefundFixed";
 function TrackOrder() {
   const { id } = useParams();
   const navigate = useNavigate();
