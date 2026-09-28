@@ -1,33 +1,9 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { addToCart } from "./dataService";
 import ProductImage from "./ProductImage";
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // ======================================================
-  // CHECK LOGIN
-  // ======================================================
-
-  const checkLogin = () => {
-    return (
-      localStorage.getItem("isLoggedIn") === "true" &&
-      localStorage.getItem("loggedInUser")
-    );
-  };
-
-  // ======================================================
-  // REDIRECT TO LOGIN
-  // ======================================================
-
-  const redirectToLogin = () => {
-    navigate("/login", {
-      state: {
-        from: location.pathname + location.search,
-      },
-    });
-  };
 
   // ======================================================
   // PRODUCT DETAILS
@@ -39,18 +15,11 @@ const ProductCard = ({ product }) => {
 
   // ======================================================
   // ADD TO CART
+  // LOGIN CHECK REMOVED
   // ======================================================
 
   const handleAddToCart = async (event) => {
     event.stopPropagation();
-
-    if (!checkLogin()) {
-      alert("Please Login To Add Products To Cart");
-
-      redirectToLogin();
-
-      return;
-    }
 
     try {
       await addToCart(product);
@@ -78,21 +47,11 @@ const ProductCard = ({ product }) => {
 
   // ======================================================
   // ADD TO WISHLIST
+  // LOGIN CHECK REMOVED
   // ======================================================
 
   const handleAddToWishlist = (event) => {
     event.stopPropagation();
-
-    if (!checkLogin()) {
-      alert(
-        
-         "To Add Products To Wishlist"
-      );
-
-      redirectToLogin();
-
-      return;
-    }
 
     const wishlist =
       JSON.parse(
@@ -123,6 +82,10 @@ const ProductCard = ({ product }) => {
     // Notify Navbar about wishlist change
     window.dispatchEvent(
       new Event("wishlistChanged")
+    );
+
+    window.dispatchEvent(
+      new Event("storage")
     );
 
     alert("Added To Wishlist ❤️");
@@ -273,13 +236,6 @@ const ProductCard = ({ product }) => {
 
         /* ============================================== */
         /* IMAGE */
-        /* FIX: removed overflow:hidden + removed the      */
-        /* clashing fixed height/padding on the <img> that */
-        /* was pushing it outside the container and        */
-        /* getting it clipped. Container now just centers  */
-        /* the image; ProductImage.jsx controls its own    */
-        /* sizing via object-fit: contain, so nothing gets */
-        /* cropped anymore.                                 */
         /* ============================================== */
 
         .product-image-container {

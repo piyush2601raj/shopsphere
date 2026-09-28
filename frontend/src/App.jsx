@@ -107,23 +107,19 @@ function AppContent() {
             }
           />
 
+          {/* ================= PUBLIC CHECKOUT ================= */}
+
           <Route
             path="/checkout"
-            element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            }
+            element={<Checkout />}
           />
 
           <Route
             path="/payment"
-            element={
-              <ProtectedRoute>
-                <Payment />
-              </ProtectedRoute>
-            }
+            element={<Payment />}
           />
+
+          {/* ================= PROTECTED ORDER ROUTES ================= */}
 
           <Route
             path="/orders"
