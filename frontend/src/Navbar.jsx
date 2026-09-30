@@ -2,143 +2,394 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getProducts } from "./dataService";
 
-// ================= SEARCH PRODUCT IMAGE =================
-const getSearchProductImage = (item) => {
-  const directImage =
-    item?.imageUrl ||
-    item?.image ||
-    null;
+// ============================================================
+// GUARANTEED FALLBACK IMAGE
+// ============================================================
 
-  // If a valid absolute/data/blob URL exists, use it first.
-  if (
-    typeof directImage === "string" &&
-    (
-      directImage.startsWith("http://") ||
-      directImage.startsWith("https://") ||
-      directImage.startsWith("data:") ||
-      directImage.startsWith("blob:")
-    )
-  ) {
-    return directImage;
-  }
+const createFallbackImage = (item = {}) => {
+  const name = String(item?.name || "Product")
+    .replace(/[<>&"]/g, "")
+    .slice(0, 22);
 
-  // Existing local Product image files in /public/Products
   const subCategory = String(
     item?.subCategoryName ||
-    item?.subCategory ||
-    item?.subcategoryName ||
-    item?.subcategory ||
-    ""
+      item?.subCategory ||
+      item?.subcategoryName ||
+      item?.subcategory ||
+      item?.categoryName ||
+      item?.category ||
+      "Product"
   )
-    .toLowerCase()
-    .trim();
+    .replace(/[<>&"]/g, "")
+    .slice(0, 22);
 
-  const imageMap = {
-    laptop: "/Products/laptop.png",
-    monitor: "/Products/monitor.png",
-    mouse: "/Products/mouse.png",
-    keyboard: "/Products/keyboard.png",
-    tablet: "/Products/tablet.png",
-    "smart watch": "/Products/watches.png",
-    watches: "/Products/watches.png",
-    headphones: "/Products/headphones.png",
-    lighting: "/Products/lighting.png",
-    "t-shirts": "/Products/tshirt.png",
-    tshirts: "/Products/tshirt.png",
-    "t-shirt": "/Products/tshirt.png",
-    shirts: "/Products/shirt.png",
-    jeans: "/Products/jeans.png",
-    dresses: "/Products/dress.png",
-    "mobile phones": "/Products/mobile.png",
-    mobiles: "/Products/mobile.png",
-    smartphones: "/Products/mobile.png",
-    refrigerators: "/Products/refrigerator.png",
-    "air conditioners": "/Products/ac.png",
-    "microwave ovens": "/Products/microwave.png",
-    washing: "/Products/washing-machine.png",
-    "washing machines": "/Products/washing-machine.png",
-    gaming: "/Products/gaming.png",
-    "gaming laptops": "/Products/gaming.png",
-    "sports & fitness": "/Products/sports.png",
-  };
+  const svg = `
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="140"
+      height="140"
+      viewBox="0 0 140 140"
+    >
+      <rect
+        width="140"
+        height="140"
+        rx="12"
+        fill="#f4f6f8"
+      />
 
-  if (imageMap[subCategory]) {
-    return imageMap[subCategory];
+      <rect
+        x="35"
+        y="30"
+        width="70"
+        height="52"
+        rx="5"
+        fill="#d9dee5"
+        stroke="#8b95a3"
+        stroke-width="2"
+      />
+
+      <rect
+        x="41"
+        y="36"
+        width="58"
+        height="40"
+        rx="2"
+        fill="#ffffff"
+      />
+
+      <path
+        d="M25 91 L115 91 L106 101 L34 101 Z"
+        fill="#aab2bd"
+      />
+
+      <circle
+        cx="70"
+        cy="56"
+        r="9"
+        fill="#0d6efd"
+      />
+
+      <text
+        x="70"
+        y="120"
+        text-anchor="middle"
+        font-family="Arial, sans-serif"
+        font-size="10"
+        font-weight="600"
+        fill="#343a40"
+      >
+        ${name}
+      </text>
+
+      <text
+        x="70"
+        y="133"
+        text-anchor="middle"
+        font-family="Arial, sans-serif"
+        font-size="8"
+        fill="#6c757d"
+      >
+        ${subCategory}
+      </text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+// ============================================================
+// NORMALIZE IMAGE URL
+// ============================================================
+
+const normalizeImageUrl = (image) => {
+  if (!image || typeof image !== "string") {
+    return null;
   }
 
-  // Backend/local filename such as "laptop.png"
-  if (typeof directImage === "string" && directImage.trim()) {
-    const value = directImage.trim();
+  const value = image.trim();
 
-    if (value.startsWith("/")) {
-      return value;
-    }
+  if (!value) {
+    return null;
+  }
 
-    return `/Products/${value}`;
+  // External URL
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:") ||
+    value.startsWith("blob:")
+  ) {
+    return value;
+  }
+
+  // Don't use Vite source paths directly
+  if (
+    value.startsWith("/src/") ||
+    value.startsWith("src/")
+  ) {
+    return null;
+  }
+
+  // Public path
+  if (value.startsWith("/")) {
+    return value;
+  }
+
+  // Database filename
+  return `/Products/${value}`;
+};
+
+// ============================================================
+// SUBCATEGORY IMAGE MAP
+// ============================================================
+
+const imageMap = {
+  Laptop: "laptop.png",
+  Mobile: "mobile.png",
+  Monitor: "monitor.png",
+  Mouse: "mouse.png",
+  Keyboard: "keyboard.png",
+  Tablet: "tablet.png",
+
+  "Smart Watch": "smartwatch.png",
+  Smartwatch: "smartwatch.png",
+
+  "T-Shirts": "tshirt.png",
+  TShirts: "tshirt.png",
+  "T-Shirt": "tshirt.png",
+
+  Shirts: "shirt.png",
+  Jeans: "jeans.png",
+  Shoes: "shoes.png",
+  Dresses: "dress.png",
+  Hoodies: "hoodie.png",
+  Jackets: "jacket.png",
+
+  Handbags: "handbag.png",
+  Handbag: "handbag.png",
+
+  Belts: "belts.png",
+  Caps: "caps.png",
+  Jewellery: "jewellery.png",
+  Perfumes: "perfumes.png",
+
+  Sunglasses: "sunglasses.png",
+  Sunglasses: "sunglasses.png",
+
+  Luggage: "luggage.png",
+
+  Fiction: "fiction.png",
+  Biography: "biography.png",
+  Business: "business.png",
+  Children: "children.png",
+  Comics: "comics.png",
+  Education: "education.png",
+  Religion: "religion.png",
+  "Self Help": "selfhelp.png",
+
+  Furniture: "furniture.png",
+  Chair: "chair.png",
+  Bedding: "bedding.png",
+  Decor: "decor.png",
+  Kitchen: "kitchen.png",
+  Cookware: "cookware.png",
+  Cleaning: "cleaning.png",
+  Storage: "storage.png",
+
+  "Air Conditioner": "airconditioner.png",
+  Appliances: "appliances.png",
+  Geyser: "geyser.png",
+  Microwave: "microwave.png",
+  Refrigerator: "refrigerator.png",
+  Television: "television.png",
+  "Vacuum Cleaner": "vacuumcleaner.png",
+
+  Console: "console.png",
+  Controller: "controller.png",
+  Headset: "headset.png",
+  VR: "vr.png",
+
+  Cricket: "cricket.png",
+  Cycling: "cycling.png",
+  Football: "football.png",
+  Gym: "gym.png",
+  Running: "running.png",
+  Swimming: "swimming.png",
+};
+
+// ============================================================
+// GET SUBCATEGORY IMAGE
+// ============================================================
+
+const getSubCategoryImage = (item) => {
+  const rawSubCategory =
+    item?.subCategoryName ||
+    item?.subcategoryName ||
+    item?.subCategory?.name ||
+    item?.subcategory?.name ||
+    item?.subCategory ||
+    "";
+
+  const subCategory = String(rawSubCategory)
+    .trim()
+    .toLowerCase();
+
+  const matchedKey = Object.keys(imageMap).find(
+    (key) =>
+      key.toLowerCase() === subCategory
+  );
+
+  if (matchedKey) {
+    return `/Products/${imageMap[matchedKey]}`;
   }
 
   return "/Products/fallback.jpg";
 };
 
+// ============================================================
+// GET PRODUCT IMAGE
+//
+// PRIORITY:
+//
+// 1. product.image
+// 2. product.imageUrl
+// 3. product-name related Bing image
+// 4. subcategory image
+// 5. guaranteed SVG
+// ============================================================
+
+const getSearchProductImage = (item) => {
+  if (!item) {
+    return createFallbackImage({});
+  }
+
+  const existingImage = normalizeImageUrl(
+    item?.image || item?.imageUrl
+  );
+
+  if (existingImage) {
+    return existingImage;
+  }
+
+  // Product-specific image based on product name
+  const productName =
+    item?.name || "product";
+
+  return (
+    `https://tse2.mm.bing.net/th?q=` +
+    `${encodeURIComponent(productName)}` +
+    `&w=700&h=700&c=7&rs=1&p=0`
+  );
+};
+
+// ============================================================
+// NAVBAR
+// ============================================================
 
 const Navbar = () => {
   const navigate = useNavigate();
 
-  // ================= STATES =================
-
   const [count, setCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
 
-  const [search, setSearch] = useState("");
-  const [allProducts, setAllProducts] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [wishlistCount, setWishlistCount] =
+    useState(0);
 
-  // AUTHENTICATION STATES
+  const [search, setSearch] =
+    useState("");
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState(null);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [allProducts, setAllProducts] =
+    useState([]);
 
-  // ================= CART COUNT =================
+  const [suggestions, setSuggestions] =
+    useState([]);
+
+  const [showSuggestions, setShowSuggestions] =
+    useState(false);
+
+  const [isLoggedIn, setIsLoggedIn] =
+    useState(false);
+
+  const [loggedInUser, setLoggedInUser] =
+    useState(null);
+
+  const [showProfileMenu, setShowProfileMenu] =
+    useState(false);
+
+  // ==========================================================
+  // CART COUNT
+  // ==========================================================
 
   const updateCartCount = () => {
-    const cart =
-      JSON.parse(localStorage.getItem("cart")) || [];
+    try {
+      const cart =
+        JSON.parse(
+          localStorage.getItem("cart")
+        ) || [];
 
-    const totalQuantity = cart.reduce(
-      (sum, item) =>
-        sum + (Number(item.quantity) || 1),
-      0
-    );
+      const totalQuantity =
+        cart.reduce(
+          (sum, item) =>
+            sum +
+            (Number(item?.quantity) || 1),
+          0
+        );
 
-    setCount(totalQuantity);
+      setCount(totalQuantity);
+    } catch (error) {
+      console.error(
+        "Cart count error:",
+        error
+      );
+
+      setCount(0);
+    }
   };
 
-  // ================= WISHLIST COUNT =================
+  // ==========================================================
+  // WISHLIST COUNT
+  // ==========================================================
 
   const updateWishlistCount = () => {
-    const wishlist =
-      JSON.parse(
-        localStorage.getItem("wishlist")
-      ) || [];
+    try {
+      const wishlist =
+        JSON.parse(
+          localStorage.getItem("wishlist")
+        ) || [];
 
-    setWishlistCount(wishlist.length);
+      setWishlistCount(
+        wishlist.length
+      );
+    } catch (error) {
+      console.error(
+        "Wishlist count error:",
+        error
+      );
+
+      setWishlistCount(0);
+    }
   };
 
-  // ================= AUTH STATUS =================
+  // ==========================================================
+  // AUTH STATUS
+  // ==========================================================
 
   const updateAuthStatus = () => {
     const loginStatus =
-      localStorage.getItem("isLoggedIn") === "true";
+      localStorage.getItem(
+        "isLoggedIn"
+      ) === "true";
 
     let savedUser = null;
 
     try {
-      savedUser =
-        JSON.parse(
-          localStorage.getItem("loggedInUser")
+      const value =
+        localStorage.getItem(
+          "loggedInUser"
         );
+
+      if (value) {
+        savedUser = JSON.parse(value);
+      }
     } catch (error) {
       console.error(
         "Could not parse logged-in user:",
@@ -155,13 +406,21 @@ const Navbar = () => {
     );
   };
 
-  // ================= LOAD PRODUCTS =================
+  // ==========================================================
+  // LOAD PRODUCTS
+  // ==========================================================
 
   useEffect(() => {
+    let mounted = true;
+
     const loadProducts = async () => {
       try {
         const data =
           await getProducts();
+
+        if (!mounted) {
+          return;
+        }
 
         if (Array.isArray(data)) {
           const validProducts =
@@ -184,29 +443,34 @@ const Navbar = () => {
           error
         );
 
-        setAllProducts([]);
+        if (mounted) {
+          setAllProducts([]);
+        }
       }
     };
 
     loadProducts();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // ================= CART + WISHLIST + AUTH EVENTS =================
+  // ==========================================================
+  // EVENTS
+  // ==========================================================
 
   useEffect(() => {
-    // Initial load
     updateCartCount();
     updateWishlistCount();
     updateAuthStatus();
 
-    // Storage event
     const handleStorageChange = () => {
       updateCartCount();
       updateWishlistCount();
       updateAuthStatus();
     };
 
-    // Custom app event
     const handleCartChanged = () => {
       updateCartCount();
     };
@@ -264,21 +528,22 @@ const Navbar = () => {
     };
   }, []);
 
-  // ================= PROFILE MENU =================
+  // ==========================================================
+  // PROFILE
+  // ==========================================================
 
   const handleProfileClick = () => {
-    setShowProfileMenu((prev) => !prev);
+    setShowProfileMenu(
+      (prev) => !prev
+    );
   };
 
-  const closeProfileMenu = () => {
-    setShowProfileMenu(false);
-  };
-
-  // ================= LOGOUT =================
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
 
   const handleLogout = () => {
     setShowProfileMenu(false);
-
 
     localStorage.removeItem(
       "loggedInUser"
@@ -286,6 +551,10 @@ const Navbar = () => {
 
     localStorage.removeItem(
       "isLoggedIn"
+    );
+
+    localStorage.removeItem(
+      "userId"
     );
 
     setIsLoggedIn(false);
@@ -298,7 +567,9 @@ const Navbar = () => {
     navigate("/login");
   };
 
-  // ================= SEARCH SUBMIT =================
+  // ==========================================================
+  // SEARCH SUBMIT
+  // ==========================================================
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -306,12 +577,12 @@ const Navbar = () => {
     const searchValue =
       search.trim();
 
+    setShowSuggestions(false);
+
     if (!searchValue) {
       navigate("/products");
       return;
     }
-
-    setShowSuggestions(false);
 
     navigate(
       `/products?search=${encodeURIComponent(
@@ -320,18 +591,9 @@ const Navbar = () => {
     );
   };
 
-  // ================= GET WORDS =================
-
-  const getWords = (text = "") => {
-    return String(text)
-      .toLowerCase()
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-  };
-
-  // ================= SEARCH SUGGESTIONS =================
+  // ==========================================================
   // SMART SEARCH
+  // ==========================================================
 
   const handleInputChange = (e) => {
     const value =
@@ -340,9 +602,9 @@ const Navbar = () => {
     setSearch(value);
 
     const searchValue =
-      value.trim().toLowerCase();
-
-    // Empty search
+      value
+        .trim()
+        .toLowerCase();
 
     if (!searchValue) {
       setSuggestions([]);
@@ -350,14 +612,14 @@ const Navbar = () => {
       return;
     }
 
-    // ====================================================
-    // EXTRACT MAX PRICE
-    // ====================================================
+    // ========================================================
+    // PRICE DETECTION
+    // ========================================================
 
     let maxPrice = null;
 
     const pricePattern =
-      /(?:under|below|less than|upto|up to)\s*₹?\s*([\d,]+)/i;
+      /(?:under|below|less than|upto|up to|within|max|maximum)\s*₹?\s*([\d,]+)/i;
 
     const priceMatch =
       searchValue.match(
@@ -365,38 +627,36 @@ const Navbar = () => {
       );
 
     if (priceMatch) {
-      const priceValue =
-        priceMatch[1].replace(
-          /,/g,
-          ""
+      const parsedPrice =
+        Number(
+          priceMatch[1].replace(
+            /,/g,
+            ""
+          )
         );
 
-      const parsedPrice =
-        Number(priceValue);
-
       if (!Number.isNaN(parsedPrice)) {
-        maxPrice =
-          parsedPrice;
+        maxPrice = parsedPrice;
       }
     }
 
-    // ====================================================
+    // ========================================================
     // REMOVE PRICE PART
-    // ====================================================
+    // ========================================================
 
     const keywordText =
       searchValue
         .replace(
-          /(?:under|below|less than|upto|up to)\s*₹?\s*[\d,]+/i,
+          /(?:under|below|less than|upto|up to|within|max|maximum)\s*₹?\s*[\d,]+/i,
           ""
         )
         .trim();
 
-    // ====================================================
-    // COMMON WORDS TO IGNORE
-    // ====================================================
+    // ========================================================
+    // IGNORED WORDS
+    // ========================================================
 
-    const ignoredWords = [
+    const ignoredWords = new Set([
       "show",
       "me",
       "find",
@@ -410,60 +670,99 @@ const Navbar = () => {
       "for",
       "with",
       "and",
-    ];
-
-    // ====================================================
-    // GET SEARCH KEYWORDS
-    // ====================================================
+      "want",
+      "need",
+      "looking",
+      "look",
+      "recommend",
+      "recommendation",
+      "recommendations",
+      "suggest",
+      "suggestion",
+      "suggestions",
+      "under",
+      "below",
+      "less",
+      "than",
+      "upto",
+      "up",
+      "to",
+      "within",
+      "maximum",
+      "max",
+      "price",
+      "rupees",
+      "rs",
+    ]);
 
     const searchWords =
       keywordText
         .split(/\s+/)
-        .map(
-          (word) =>
-            word.trim()
-        )
-        .filter(
-          (word) =>
-            word.length > 1
-        )
-        .filter(
-          (word) =>
-            !ignoredWords.includes(
-              word
+        .map((word) =>
+          word
+            .replace(
+              /[^\w&-]/g,
+              ""
             )
+            .trim()
+        )
+        .filter(Boolean)
+        .filter(
+          (word) =>
+            !ignoredWords.has(word)
         );
 
-    // ====================================================
-    // SEARCH PRODUCTS
-    // ====================================================
+    // ========================================================
+    // PRICE ONLY
+    // ========================================================
+
+    if (
+      searchWords.length === 0 &&
+      maxPrice === null
+    ) {
+      setSuggestions([]);
+      setShowSuggestions(true);
+      return;
+    }
+
+    // ========================================================
+    // SEARCH + RANK
+    // ========================================================
 
     const result =
       allProducts
         .map((item) => {
           const name =
-            item?.name?.toLowerCase() ||
-            "";
+            String(
+              item?.name || ""
+            ).toLowerCase();
 
           const brand =
-            item?.brand?.toLowerCase() ||
-            "";
+            String(
+              item?.brand || ""
+            ).toLowerCase();
 
-          const category = (
-            item?.categoryName ||
-            item?.category ||
-            ""
-          ).toLowerCase();
+          const category =
+            String(
+              item?.categoryName ||
+                item?.category ||
+                ""
+            ).toLowerCase();
 
-          const subCategory = (
-            item?.subCategoryName ||
-            item?.subCategory ||
-            ""
-          ).toLowerCase();
+          const subCategory =
+            String(
+              item?.subCategoryName ||
+                item?.subCategory ||
+                item?.subcategoryName ||
+                item?.subcategory ||
+                ""
+            ).toLowerCase();
 
           const description =
-            item?.description?.toLowerCase() ||
-            "";
+            String(
+              item?.description ||
+                ""
+            ).toLowerCase();
 
           const searchableText =
             `${name} ${brand} ${category} ${subCategory} ${description}`;
@@ -481,7 +780,7 @@ const Navbar = () => {
           }
 
           // ==================================================
-          // NO KEYWORD
+          // PRICE ONLY
           // ==================================================
 
           if (
@@ -490,43 +789,33 @@ const Navbar = () => {
             return {
               product: item,
               score: 1,
+              matchedWords: 0,
             };
           }
 
-          // ==================================================
-          // KEYWORD MATCH
-          // ==================================================
-
-          const matches =
-            searchWords.every(
-              (word) =>
-                searchableText.includes(
-                  word
-                )
-            );
-
-          if (!matches) {
-            return null;
-          }
-
-          // ==================================================
-          // RANKING
-          // ==================================================
-
           let score = 0;
+          let matchedWords = 0;
+
+          // ==================================================
+          // WORD MATCH
+          // ==================================================
 
           searchWords.forEach(
             (word) => {
+              let matched = false;
+
               if (
                 name.includes(word)
               ) {
-                score += 50;
+                score += 100;
+                matched = true;
               }
 
               if (
                 brand.includes(word)
               ) {
-                score += 40;
+                score += 80;
+                matched = true;
               }
 
               if (
@@ -534,13 +823,17 @@ const Navbar = () => {
                   word
                 )
               ) {
-                score += 35;
+                score += 70;
+                matched = true;
               }
 
               if (
-                category.includes(word)
+                category.includes(
+                  word
+                )
               ) {
-                score += 30;
+                score += 60;
+                matched = true;
               }
 
               if (
@@ -548,7 +841,56 @@ const Navbar = () => {
                   word
                 )
               ) {
-                score += 10;
+                score += 20;
+                matched = true;
+              }
+
+              if (matched) {
+                matchedWords++;
+              }
+            }
+          );
+
+          // ==================================================
+          // ALL SEARCH WORDS MUST MATCH
+          // ==================================================
+
+          if (
+            matchedWords !==
+            searchWords.length
+          ) {
+            return null;
+          }
+
+          // ==================================================
+          // EXACT PHRASE BONUS
+          // ==================================================
+
+          if (
+            keywordText.length > 1 &&
+            searchableText.includes(
+              keywordText
+            )
+          ) {
+            score += 200;
+          }
+
+          // ==================================================
+          // STARTS WITH BONUS
+          // ==================================================
+
+          searchWords.forEach(
+            (word) => {
+              if (
+                name.startsWith(word)
+              ) {
+                score += 50;
+              }
+
+              if (
+                brand.startsWith(word)
+              ) {
+                score += 40;
               }
             }
           );
@@ -556,29 +898,36 @@ const Navbar = () => {
           return {
             product: item,
             score,
+            matchedWords,
           };
         })
         .filter(Boolean)
-        .sort(
-          (a, b) =>
-            b.score - a.score
-        )
+        .sort((a, b) => {
+          if (
+            b.matchedWords !==
+            a.matchedWords
+          ) {
+            return (
+              b.matchedWords -
+              a.matchedWords
+            );
+          }
+
+          return (
+            b.score -
+            a.score
+          );
+        })
         .map(
           (item) =>
             item.product
         );
-
-    // ====================================================
-    // TOP 8 SUGGESTIONS
-    // ====================================================
 
     setSuggestions(
       result.slice(0, 8)
     );
 
     setShowSuggestions(true);
-
-    // DEBUG
 
     console.log(
       "NAVBAR SMART SEARCH:",
@@ -591,13 +940,19 @@ const Navbar = () => {
     );
   };
 
-  // ================= SUGGESTION CLICK =================
+  // ==========================================================
+  // SUGGESTION CLICK
+  // ==========================================================
 
   const handleSuggestionClick = (
     item
   ) => {
+    if (!item?.id) {
+      return;
+    }
+
     setSearch(
-      item.name || ""
+      item?.name || ""
     );
 
     setSuggestions([]);
@@ -608,13 +963,17 @@ const Navbar = () => {
     );
   };
 
-  // ================= RETURN =================
+  // ==========================================================
+  // RETURN
+  // ==========================================================
 
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow">
       <div className="container-fluid">
 
-        {/* ================= LOGO ================= */}
+        {/* ==================================================
+            LOGO
+        ================================================== */}
 
         <Link
           className="navbar-brand fw-bold fs-4"
@@ -623,7 +982,9 @@ const Navbar = () => {
           ShopSphere 🛍️
         </Link>
 
-        {/* ================= MOBILE TOGGLER ================= */}
+        {/* ==================================================
+            MOBILE TOGGLER
+        ================================================== */}
 
         <button
           className="navbar-toggler"
@@ -642,7 +1003,9 @@ const Navbar = () => {
           id="navbarContent"
         >
 
-          {/* ================= SEARCH BAR ================= */}
+          {/* ==================================================
+              SEARCH
+          ================================================== */}
 
           <form
             className="d-flex mx-auto my-2 my-lg-0 position-relative"
@@ -652,30 +1015,22 @@ const Navbar = () => {
             }}
             onSubmit={handleSearch}
           >
+
             <input
               className="form-control"
               type="search"
               placeholder="Search for Products, Brands and More"
               value={search}
-              onChange={
-                handleInputChange
-              }
+              onChange={handleInputChange}
               onFocus={() => {
-                if (
-                  search.trim() &&
-                  suggestions.length > 0
-                ) {
-                  setShowSuggestions(
-                    true
-                  );
+                if (search.trim()) {
+                  setShowSuggestions(true);
                 }
               }}
               onBlur={() => {
                 setTimeout(() => {
-                  setShowSuggestions(
-                    false
-                  );
-                }, 200);
+                  setShowSuggestions(false);
+                }, 250);
               }}
             />
 
@@ -686,7 +1041,9 @@ const Navbar = () => {
               Search
             </button>
 
-            {/* ================= SEARCH DROPDOWN ================= */}
+            {/* ==================================================
+                SEARCH DROPDOWN
+            ================================================== */}
 
             {showSuggestions && (
               <div
@@ -702,8 +1059,9 @@ const Navbar = () => {
                   overflowY: "auto",
                 }}
               >
-                {suggestions.length ===
-                0 ? (
+
+                {suggestions.length === 0 ? (
+
                   <div className="p-4 text-center">
 
                     <div className="fw-semibold text-dark">
@@ -711,11 +1069,14 @@ const Navbar = () => {
                     </div>
 
                     <small className="text-muted">
-                      Try searching with another keyword
+                      Try another product,
+                      brand or category
                     </small>
 
                   </div>
+
                 ) : (
+
                   suggestions.map(
                     (item) => (
                       <div
@@ -731,67 +1092,138 @@ const Navbar = () => {
                           )
                         }
                       >
+
                         <div className="d-flex align-items-center gap-3">
 
+                          {/* ==================================================
+                              PRODUCT IMAGE
+                          ================================================== */}
+
                           <img
-                            src={getSearchProductImage(item)}
+                            src={getSearchProductImage(
+                              item
+                            )}
                             alt={
                               item?.name ||
                               "Product"
                             }
+                            title={
+                              item?.name ||
+                              "Product"
+                            }
+                            loading="lazy"
                             style={{
-                              width:
-                                "70px",
-                              height:
-                                "70px",
-                              objectFit:
-                                "contain",
+                              width: "70px",
+                              height: "70px",
+                              objectFit: "contain",
                               flexShrink: 0,
-                              borderRadius:
-                                "8px",
+                              borderRadius: "8px",
                               backgroundColor:
                                 "#f8f9fa",
+                              padding: "4px",
                             }}
-                            onError={(
-                              e
-                            ) => {
-                              e.currentTarget.onerror =
-                                null;
+                            onError={(event) => {
+                              const img =
+                                event.currentTarget;
 
-                              e.currentTarget.src =
-                                "/Products/fallback.jpg";
+                              // ----------------------------------------------
+                              // EXISTING IMAGE FAILED
+                              // -> PRODUCT NAME IMAGE
+                              // ----------------------------------------------
+
+                              if (
+                                !img.dataset
+                                  .bingFallback
+                              ) {
+                                img.dataset
+                                  .bingFallback =
+                                  "true";
+
+                                img.src =
+                                  `https://tse2.mm.bing.net/th?q=${encodeURIComponent(
+                                    item?.name ||
+                                      "product"
+                                  )}&w=700&h=700&c=7&rs=1&p=0`;
+
+                                return;
+                              }
+
+                              // ----------------------------------------------
+                              // BING FAILED
+                              // -> SUBCATEGORY IMAGE
+                              // ----------------------------------------------
+
+                              if (
+                                !img.dataset
+                                  .subcategoryFallback
+                              ) {
+                                img.dataset
+                                  .subcategoryFallback =
+                                  "true";
+
+                                img.src =
+                                  getSubCategoryImage(
+                                    item
+                                  );
+
+                                return;
+                              }
+
+                              // ----------------------------------------------
+                              // FINAL GUARANTEED FALLBACK
+                              // ----------------------------------------------
+
+                              img.onerror = null;
+
+                              img.src =
+                                createFallbackImage(
+                                  item
+                                );
                             }}
                           />
+
+                          {/* ==================================================
+                              PRODUCT INFORMATION
+                          ================================================== */}
 
                           <div
                             style={{
                               minWidth: 0,
                             }}
                           >
+
                             <div
                               className="fw-semibold text-dark text-truncate"
                               title={
-                                item.name
+                                item?.name
                               }
                             >
-                              {item.name}
+                              {item?.name ||
+                                "Product"}
                             </div>
 
                             <small className="text-muted">
+
                               {item?.brand ||
                                 item?.categoryName ||
                                 item?.category ||
                                 "ShopSphere"}
 
                               {(item?.subCategoryName ||
-                                item?.subCategory) &&
+                                item?.subCategory ||
+                                item?.subcategoryName ||
+                                item?.subcategory) &&
                                 ` • ${
                                   item?.subCategoryName ||
-                                  item?.subCategory
+                                  item?.subCategory ||
+                                  item?.subcategoryName ||
+                                  item?.subcategory
                                 }`}
+
                             </small>
 
                             <div className="text-success fw-bold mt-1">
+
                               ₹
                               {Number(
                                 item?.price ||
@@ -799,19 +1231,27 @@ const Navbar = () => {
                               ).toLocaleString(
                                 "en-IN"
                               )}
+
                             </div>
+
                           </div>
 
                         </div>
+
                       </div>
                     )
                   )
+
                 )}
+
               </div>
             )}
+
           </form>
 
-          {/* ================= NAVIGATION ================= */}
+          {/* ==================================================
+              NAVIGATION
+          ================================================== */}
 
           <ul className="navbar-nav ms-auto align-items-lg-center">
 
@@ -833,7 +1273,9 @@ const Navbar = () => {
               </Link>
             </li>
 
-            {/* ================= WISHLIST ================= */}
+            {/* ==================================================
+                WISHLIST
+            ================================================== */}
 
             <li className="nav-item">
               <Link
@@ -850,7 +1292,9 @@ const Navbar = () => {
               </Link>
             </li>
 
-            {/* ================= ORDERS ================= */}
+            {/* ==================================================
+                ORDERS
+            ================================================== */}
 
             <li className="nav-item">
               <Link
@@ -861,7 +1305,9 @@ const Navbar = () => {
               </Link>
             </li>
 
-            {/* ================= CART ================= */}
+            {/* ==================================================
+                CART
+            ================================================== */}
 
             <li className="nav-item">
               <Link
@@ -878,7 +1324,9 @@ const Navbar = () => {
               </Link>
             </li>
 
-            {/* ================= NOT LOGGED IN ================= */}
+            {/* ==================================================
+                LOGIN
+            ================================================== */}
 
             {!isLoggedIn && (
               <li className="nav-item">
@@ -891,122 +1339,90 @@ const Navbar = () => {
               </li>
             )}
 
-            {/* ================= LOGGED IN ================= */}
+            {/* ==================================================
+                LOGGED IN USER
+            ================================================== */}
 
             {isLoggedIn &&
               loggedInUser && (
-                <>
+                <li
+                  className="nav-item position-relative ms-lg-2"
+                  style={{
+                    listStyle: "none",
+                  }}
+                >
 
-                  {/* USER PROFILE DROPDOWN */}
-
-                  <li
-                    className="nav-item position-relative ms-lg-2"
-                    style={{ listStyle: "none" }}
+                  <button
+                    type="button"
+                    className="btn btn-link nav-link text-white fw-bold text-decoration-none d-flex align-items-center gap-1"
+                    onClick={
+                      handleProfileClick
+                    }
+                    style={{
+                      border: "none",
+                      background:
+                        "transparent",
+                    }}
                   >
-                    <button
-                      type="button"
-                      className="btn btn-link nav-link text-white fw-bold text-decoration-none d-flex align-items-center gap-1"
-                      onClick={handleProfileClick}
+                    👤{" "}
+                    {loggedInUser?.name ||
+                      loggedInUser?.username ||
+                      loggedInUser?.fullName ||
+                      "User"}
+
+                    <span
                       style={{
-                        border: "none",
-                        background: "transparent",
+                        fontSize: "11px",
                       }}
                     >
-                      👤{" "}
-                      {loggedInUser?.name ||
-                        loggedInUser?.username ||
-                        loggedInUser?.fullName ||
-                        "User"}
-                      <span style={{ fontSize: "11px" }}>
-                        {showProfileMenu ? "▲" : "▼"}
-                      </span>
-                    </button>
+                      ▼
+                    </span>
+                  </button>
 
-                    {showProfileMenu && (
-                      <div
-                        className="position-absolute bg-white shadow-lg rounded-3 border"
-                        style={{
-                          top: "calc(100% + 8px)",
-                          right: 0,
-                          width: "220px",
-                          zIndex: 10000,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          className="px-3 py-3 border-bottom"
-                          style={{ background: "#f8f9fa" }}
-                        >
-                          <div className="fw-bold text-dark">
-                            👤{" "}
-                            {loggedInUser?.name ||
-                              loggedInUser?.username ||
-                              loggedInUser?.fullName ||
-                              "User"}
-                          </div>
-                          <small className="text-muted">
-                            My Account
-                          </small>
+                  {showProfileMenu && (
+                    <div
+                      className="position-absolute bg-white shadow rounded-3 p-2"
+                      style={{
+                        right: 0,
+                        top:
+                          "calc(100% + 5px)",
+                        minWidth: "170px",
+                        zIndex: 10000,
+                      }}
+                    >
+
+                      <div className="px-3 py-2 border-bottom">
+
+                        <div className="fw-bold text-dark">
+                          {loggedInUser?.name ||
+                            loggedInUser?.username ||
+                            "User"}
                         </div>
 
-                        <button
-                          type="button"
-                          className="dropdown-item px-3 py-2"
-                          onClick={() => {
-                            closeProfileMenu();
-                            navigate("/profile");
-                          }}
-                        >
-                          👤 My Profile
-                        </button>
+                        {loggedInUser?.email && (
+                          <small className="text-muted">
+                            {
+                              loggedInUser.email
+                            }
+                          </small>
+                        )}
 
-                        <button
-                          type="button"
-                          className="dropdown-item px-3 py-2"
-                          onClick={() => {
-                            closeProfileMenu();
-                            navigate("/orders");
-                          }}
-                        >
-                          📦 My Orders
-                        </button>
-
-                        <button
-                          type="button"
-                          className="dropdown-item px-3 py-2"
-                          onClick={() => {
-                            closeProfileMenu();
-                            navigate("/wishlist");
-                          }}
-                        >
-                          ❤️ Wishlist
-                        </button>
-
-                        <button
-                          type="button"
-                          className="dropdown-item px-3 py-2"
-                          onClick={() => {
-                            closeProfileMenu();
-                            navigate("/cart");
-                          }}
-                        >
-                          🛒 My Cart
-                        </button>
-
-                        <div className="border-top" />
-
-                        <button
-                          type="button"
-                          className="dropdown-item px-3 py-2 text-danger fw-semibold"
-                          onClick={handleLogout}
-                        >
-                          🚪 Logout
-                        </button>
                       </div>
-                    )}
-                  </li>
 
-                </>
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm w-100 mt-2"
+                        onClick={
+                          handleLogout
+                        }
+                      >
+                        Logout
+                      </button>
+
+                    </div>
+                  )}
+
+                </li>
               )}
 
           </ul>

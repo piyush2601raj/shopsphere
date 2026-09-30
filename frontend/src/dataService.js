@@ -11,11 +11,8 @@ const normalizeText = (value) =>
   String(value || "")
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]/g, "");
-
-// ======================================================
-// NORMALIZE IMAGE PATH
-// ======================================================
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ");
 
 const normalizeImage = (image) => {
   if (!image || typeof image !== "string") {
@@ -23,6 +20,10 @@ const normalizeImage = (image) => {
   }
 
   const value = image.trim();
+
+  if (!value) {
+    return null;
+  }
 
   if (
     value.startsWith("http://") ||
@@ -38,8 +39,23 @@ const normalizeImage = (image) => {
 };
 
 // ======================================================
-// GET PRODUCT SUBCATEGORY NAME
-// Supports Backend + Local Data Structures
+// PRODUCT CATEGORY
+// ======================================================
+
+const getCategoryName = (product) => {
+  if (!product) return "";
+
+  return (
+    product?.categoryName ||
+    product?.category?.name ||
+    (typeof product?.category === "string"
+      ? product.category
+      : "")
+  );
+};
+
+// ======================================================
+// PRODUCT SUBCATEGORY
 // ======================================================
 
 const getSubCategoryName = (product) => {
@@ -60,27 +76,13 @@ const getSubCategoryName = (product) => {
 };
 
 // ======================================================
-// GET PRODUCT CATEGORY NAME
-// ======================================================
-
-const getCategoryName = (product) => {
-  if (!product) return "";
-
-  return (
-    product?.categoryName ||
-    product?.category?.name ||
-    (typeof product?.category === "string"
-      ? product.category
-      : "")
-  );
-};
-
-// ======================================================
-// FIND LOCAL PRODUCT BY SUBCATEGORY (+ BRAND AWARE)
+// LOCAL PRODUCT MATCH
 // ======================================================
 
 const findLocalProductBySubCategory = (backendProduct) => {
-  if (!backendProduct) return null;
+  if (!backendProduct) {
+    return null;
+  }
 
   const backendSubCategory =
     getSubCategoryName(backendProduct);
@@ -89,171 +91,339 @@ const findLocalProductBySubCategory = (backendProduct) => {
     return null;
   }
 
+  const backendName = normalizeText(
+    backendProduct?.name
+  );
+
   const backendBrand = normalizeText(
     backendProduct?.brand
   );
 
   const matchingProducts = products.filter(
-    (localProduct) => {
-      const localSubCategory =
-        getSubCategoryName(localProduct);
-
-      return (
-        normalizeText(localSubCategory) ===
-        normalizeText(backendSubCategory)
-      );
-    }
+    (localProduct) =>
+      normalizeText(
+        getSubCategoryName(localProduct)
+      ) === normalizeText(backendSubCategory)
   );
 
   if (matchingProducts.length === 0) {
     return null;
   }
 
-  // 1. Exact brand match
-  if (backendBrand) {
-    const brandMatch = matchingProducts.find(
-      (item) =>
-        normalizeText(item?.brand) ===
-        backendBrand
-    );
+  // ====================================================
+  // EXACT PRODUCT NAME
+  // ====================================================
 
-    if (brandMatch) {
-      return brandMatch;
+  if (backendName) {
+    const exactMatch =
+      matchingProducts.find(
+        (item) =>
+          normalizeText(item?.name) ===
+          backendName
+      );
+
+    if (exactMatch) {
+      return exactMatch;
     }
   }
 
-  // 2. Rotate by product id
+  // ====================================================
+  // BRAND MATCH
+  // ====================================================
+
+  if (backendBrand) {
+    const brandMatches =
+      matchingProducts.filter(
+        (item) =>
+          normalizeText(item?.brand) ===
+          backendBrand
+      );
+
+    if (brandMatches.length > 0) {
+      const index =
+        Math.abs(
+          Number(backendProduct?.id || 0)
+        ) % brandMatches.length;
+
+      return brandMatches[index];
+    }
+  }
+
+  // ====================================================
+  // STABLE SUBCATEGORY ROTATION
+  // ====================================================
+
   const index =
-    Number(backendProduct?.id || 0) %
-    matchingProducts.length;
+    Math.abs(
+      Number(backendProduct?.id || 0)
+    ) % matchingProducts.length;
 
   return matchingProducts[index];
 };
 
 // ======================================================
-// MERGE BACKEND PRODUCT WITH LOCAL IMAGE
+// SUBCATEGORY FALLBACK IMAGE
 // ======================================================
 
-const mergeProductImage = (backendProduct) => {
+const getSubCategoryFallbackImage = (
+  subCategoryName
+) => {
+  const key = normalizeText(
+    subCategoryName
+  );
+
+  const imageMap = {
+    laptop: "/Products/laptop.png",
+    "gaming laptops": "/Products/gaming.png",
+
+    monitor: "/Products/monitor.png",
+    mouse: "/Products/mouse.png",
+    keyboard: "/Products/keyboard.png",
+    tablet: "/Products/tablet.png",
+
+    "mobile phones": "/Products/mobile.png",
+    mobile: "/Products/mobile.png",
+    mobiles: "/Products/mobile.png",
+    smartphones: "/Products/mobile.png",
+
+    headphones: "/Products/headphones.png",
+
+    watches: "/Products/watches.png",
+    "smart watch": "/Products/smartwatch.png",
+    smartwatch: "/Products/smartwatch.png",
+
+    "t shirts": "/Products/tshirt.png",
+    tshirts: "/Products/tshirt.png",
+    "t shirt": "/Products/tshirt.png",
+
+    shirts: "/Products/shirt.png",
+    jeans: "/Products/jeans.png",
+    shoes: "/Products/shoes.png",
+    dresses: "/Products/dress.png",
+    hoodies: "/Products/hoodie.png",
+    jackets: "/Products/jacket.png",
+
+    handbags: "/Products/handbag.png",
+    belts: "/Products/belts.png",
+    caps: "/Products/caps.png",
+    jewellery: "/Products/jewellery.png",
+    perfumes: "/Products/perfumes.png",
+    sunglasses: "/Products/sunglasses.png",
+    luggage: "/Products/luggage.png",
+
+    fiction: "/Products/fiction.png",
+    biography: "/Products/biography.png",
+    business: "/Products/business.png",
+    children: "/Products/children.png",
+    comics: "/Products/comics.png",
+    education: "/Products/education.png",
+    religion: "/Products/religion.png",
+    "self help": "/Products/selfhelp.png",
+
+    furniture: "/Products/furniture.png",
+    chair: "/Products/chair.png",
+    bedding: "/Products/bedding.png",
+    decor: "/Products/decor.png",
+    kitchen: "/Products/kitchen.png",
+    cookware: "/Products/cookware.png",
+    cleaning: "/Products/cleaning.png",
+    storage: "/Products/storage.png",
+
+    "air conditioner":
+      "/Products/airconditioner.png",
+
+    "air conditioners":
+      "/Products/airconditioner.png",
+
+    appliances: "/Products/appliances.png",
+    geyser: "/Products/geyser.png",
+
+    microwave: "/Products/microwave.png",
+
+    "microwave ovens":
+      "/Products/microwave.png",
+
+    refrigerator:
+      "/Products/refrigerator.png",
+
+    refrigerators:
+      "/Products/refrigerator.png",
+
+    television:
+      "/Products/television.png",
+
+    televisions:
+      "/Products/television.png",
+
+    "vacuum cleaner":
+      "/Products/vacuumcleaner.png",
+
+    "vacuum cleaners":
+      "/Products/vacuumcleaner.png",
+
+    console: "/Products/console.png",
+    controller: "/Products/controller.png",
+    headset: "/Products/headset.png",
+    vr: "/Products/vr.png",
+
+    cricket: "/Products/cricket.png",
+    cycling: "/Products/cycling.png",
+    football: "/Products/football.png",
+    gym: "/Products/gym.png",
+    running: "/Products/running.png",
+    swimming: "/Products/swimming.png",
+
+    gaming: "/Products/gaming.png",
+
+    "sports fitness":
+      "/Products/sports.png",
+
+    "sports & fitness":
+      "/Products/sports.png",
+  };
+
+  return (
+    imageMap[key] ||
+    "/Products/fallback.jpg"
+  );
+};
+
+// ======================================================
+// MERGE PRODUCT IMAGE
+// ======================================================
+
+const mergeProductImage = (
+  backendProduct
+) => {
   if (!backendProduct) {
     return backendProduct;
   }
 
   const subCategoryName =
-    getSubCategoryName(backendProduct);
+    getSubCategoryName(
+      backendProduct
+    );
 
   const localProduct =
     findLocalProductBySubCategory(
       backendProduct
     );
 
-  // Local image
   const localImage =
-    normalizeImage(localProduct?.image) ||
-    normalizeImage(localProduct?.imageUrl);
-
-  // Backend image
-  const backendImage =
-    normalizeImage(backendProduct?.image) ||
     normalizeImage(
-      backendProduct?.imageUrl
+      localProduct?.imageUrl
+    ) ||
+    normalizeImage(
+      localProduct?.image
     );
 
-  console.log(
-    "MERGING PRODUCT IMAGE:",
-    {
-      productName: backendProduct?.name,
-      brand: backendProduct?.brand,
-      subCategoryName,
-      localProductFound:
-        localProduct?.name,
-      localProductBrand:
-        localProduct?.brand,
-      localImage,
-      backendImage,
-    }
-  );
+  const backendImage =
+    normalizeImage(
+      backendProduct?.imageUrl
+    ) ||
+    normalizeImage(
+      backendProduct?.image
+    );
 
-  // ====================================================
-  // FIX: SAFE PRODUCT NAME
-  // Prevent React Date/Object rendering error
-  // ====================================================
+  const fallbackImage =
+    getSubCategoryFallbackImage(
+      subCategoryName
+    );
 
-  const backendName =
-    typeof backendProduct?.name === "string"
-      ? backendProduct.name.trim()
-      : "";
+  /*
+   * IMPORTANT
+   *
+   * Local image first.
+   *
+   * Backend mein kuch URLs 404 ho rahe hain.
+   * Isliye broken external URL ko blindly priority
+   * nahi denge.
+   */
 
-  const localName =
-    typeof localProduct?.name === "string"
-      ? localProduct.name.trim()
-      : "";
-
-  const safeProductName =
-    backendName ||
-    localName ||
-    "Product";
+  const finalImage =
+    localImage ||
+    backendImage ||
+    fallbackImage;
 
   return {
     ...backendProduct,
 
-    // IMPORTANT:
-    // Always keep product name as a string
-    name: safeProductName,
-
     categoryName:
       backendProduct?.categoryName ||
-      getCategoryName(backendProduct),
+      getCategoryName(
+        backendProduct
+      ),
 
     subCategoryName:
       backendProduct?.subCategoryName ||
       subCategoryName,
 
-    image:
-      localImage ||
-      backendImage ||
-      null,
+    image: finalImage,
 
-    imageUrl:
+    imageUrl: finalImage,
+
+    fallbackImage:
       localImage ||
-      backendImage ||
-      null,
+      fallbackImage,
   };
 };
 
 // ======================================================
-// ALL PRODUCTS
+// GET ALL PRODUCTS
 // ======================================================
 
 export const getProducts = async () => {
   if (USE_LOCAL_DATA) {
-    return products;
+    return products.map(
+      (product) => ({
+        ...product,
+        image:
+          normalizeImage(
+            product?.imageUrl
+          ) ||
+          normalizeImage(
+            product?.image
+          ) ||
+          getSubCategoryFallbackImage(
+            getSubCategoryName(product)
+          ),
+        imageUrl:
+          normalizeImage(
+            product?.imageUrl
+          ) ||
+          normalizeImage(
+            product?.image
+          ) ||
+          getSubCategoryFallbackImage(
+            getSubCategoryName(product)
+          ),
+      })
+    );
   }
 
   try {
-    const res =
-      await API.get("/products/all");
+    const response =
+      await API.get(
+        "/products/all"
+      );
 
     const backendProducts =
-      res?.data?.data || [];
+      response?.data?.data || [];
 
-    console.log(
-      "BACKEND PRODUCTS:",
-      backendProducts
-    );
+    if (
+      !Array.isArray(
+        backendProducts
+      )
+    ) {
+      return [];
+    }
 
     const mergedProducts =
       backendProducts.map(
         mergeProductImage
       );
 
-    console.log(
-      "MERGED PRODUCTS:",
-      mergedProducts
-    );
-
     return mergedProducts;
-
   } catch (error) {
     console.error(
       "GET PRODUCTS ERROR:",
@@ -268,209 +438,153 @@ export const getProducts = async () => {
 // SUBCATEGORIES
 // ======================================================
 
-export const getSubCategories = async (
-  categoryId
-) => {
-  if (USE_LOCAL_DATA) {
-    return subCategoriesData.filter(
-      (item) =>
-        Number(item.categoryId) ===
-        Number(categoryId)
-    );
-  }
+export const getSubCategories =
+  async (categoryId) => {
+    if (USE_LOCAL_DATA) {
+      return subCategoriesData.filter(
+        (item) =>
+          Number(
+            item.categoryId
+          ) ===
+          Number(categoryId)
+      );
+    }
 
-  try {
-    const res =
-      await API.get(
-        `/subcategories/category/${categoryId}`
+    try {
+      const response =
+        await API.get(
+          `/subcategories/category/${categoryId}`
+        );
+
+      return (
+        response?.data?.data || []
+      );
+    } catch (error) {
+      console.error(
+        "GET SUBCATEGORIES ERROR:",
+        error
       );
 
-    return (
-      res?.data?.data || []
-    );
-
-  } catch (error) {
-    console.error(
-      "GET SUBCATEGORIES ERROR:",
-      error
-    );
-
-    return [];
-  }
-};
+      return [];
+    }
+  };
 
 // ======================================================
 // PRODUCTS BY SUBCATEGORY
 // ======================================================
 
-export const getProductsBySubCategory = async (
-  name
-) => {
-
-  if (USE_LOCAL_DATA) {
-
-    return products.filter(
-      (item) => {
-
-        const itemSubCategory =
-          getSubCategoryName(item);
-
-        return (
-          normalizeText(
-            itemSubCategory
-          ) ===
-          normalizeText(name)
+export const getProductsBySubCategory =
+  async (name) => {
+    if (USE_LOCAL_DATA) {
+      return products
+        .filter(
+          (item) =>
+            normalizeText(
+              getSubCategoryName(item)
+            ) ===
+            normalizeText(name)
+        )
+        .map(
+          mergeProductImage
         );
-      }
-    );
-  }
+    }
 
-  try {
+    try {
+      const response =
+        await API.get(
+          `/products/subcategory/${encodeURIComponent(
+            name
+          )}`
+        );
 
-    const res =
-      await API.get(
-        `/products/subcategory/${encodeURIComponent(
-          name
-        )}`
-      );
+      const backendProducts =
+        response?.data?.data || [];
 
-    const backendProducts =
-      res?.data?.data || [];
-
-    console.log(
-      `BACKEND ${name} PRODUCTS:`,
-      backendProducts
-    );
-
-    const mergedProducts =
-      backendProducts.map(
+      return backendProducts.map(
         mergeProductImage
       );
+    } catch (error) {
+      console.error(
+        "GET PRODUCTS BY SUBCATEGORY ERROR:",
+        error
+      );
 
-    console.log(
-      `MERGED ${name} PRODUCTS:`,
-      mergedProducts
-    );
-
-    return mergedProducts;
-
-  } catch (error) {
-
-    console.error(
-      "GET PRODUCTS BY SUBCATEGORY ERROR:",
-      error
-    );
-
-    return [];
-  }
-};
+      return [];
+    }
+  };
 
 // ======================================================
 // PRODUCT BY ID
 // ======================================================
 
-export const getProductById = async (
-  id
-) => {
+export const getProductById =
+  async (id) => {
+    if (USE_LOCAL_DATA) {
+      const product =
+        products.find(
+          (item) =>
+            Number(item.id) ===
+            Number(id)
+        );
 
-  if (USE_LOCAL_DATA) {
+      return product
+        ? mergeProductImage(product)
+        : null;
+    }
 
-    return (
-      products.find(
-        (item) =>
-          Number(item.id) ===
-          Number(id)
-      ) || null
-    );
-  }
+    try {
+      const response =
+        await API.get(
+          `/products/${id}`
+        );
 
-  try {
+      const backendProduct =
+        response?.data?.data;
 
-    const res =
-      await API.get(
-        `/products/${id}`
+      return mergeProductImage(
+        backendProduct
+      );
+    } catch (error) {
+      console.error(
+        "GET PRODUCT BY ID ERROR:",
+        error
       );
 
-    const backendProduct =
-      res?.data?.data;
-
-    return mergeProductImage(
-      backendProduct
-    );
-
-  } catch (error) {
-
-    console.error(
-      "GET PRODUCT BY ID ERROR:",
-      error
-    );
-
-    return null;
-  }
-};
+      return null;
+    }
+  };
 
 // ======================================================
 // PRODUCTS BY CATEGORY
 // ======================================================
 
-export const getProductsByCategory = async (
-  categoryName
-) => {
+export const getProductsByCategory =
+  async (categoryName) => {
+    const allProducts =
+      await getProducts();
 
-  const allProducts =
-    await getProducts();
-
-  return allProducts.filter(
-    (item) => {
-
-      const itemCategory =
-        getCategoryName(item);
-
-      return (
+    return allProducts.filter(
+      (item) =>
         normalizeText(
-          itemCategory
+          getCategoryName(item)
         ) ===
         normalizeText(
           categoryName
         )
-      );
-    }
-  );
-};
+    );
+  };
 
 // ======================================================
-// SEARCH PRODUCTS
-// SMART SEARCH
-//
-// Supports:
-// laptop
-// laptop under 70000
-// laptop below 50000
-// laptop upto 60000
-// dell laptop under 70000
-// mobile under 30000
-// headphones below 5000
+// SEARCH HELPERS
 // ======================================================
 
-export const searchProducts = async (
+const extractSearchData = (
   query
 ) => {
-
-  if (
-    !query ||
-    !query.trim()
-  ) {
-    return [];
-  }
-
   const searchText =
-    query
-      .trim()
-      .toLowerCase();
-
-  // ====================================================
-  // EXTRACT MAX PRICE
-  // ====================================================
+    String(query || "")
+      .toLowerCase()
+      .trim();
 
   let maxPrice = null;
 
@@ -483,13 +597,13 @@ export const searchProducts = async (
     );
 
   if (priceMatch) {
-
-    const priceValue =
-      priceMatch[1]
-        .replace(/,/g, "");
-
     const parsedPrice =
-      Number(priceValue);
+      Number(
+        priceMatch[1].replace(
+          /,/g,
+          ""
+        )
+      );
 
     if (
       !Number.isNaN(
@@ -501,21 +615,17 @@ export const searchProducts = async (
     }
   }
 
-  // ====================================================
-  // REMOVE PRICE PART
-  // ====================================================
-
   const keywordText =
     searchText
       .replace(
-        /(?:under|below|less than|upto|up to)\s*₹?\s*[\d,]+/i,
+        /(?:under|below|less than|upto|up to)\s*₹?\s*[\d,]+/gi,
+        ""
+      )
+      .replace(
+        /₹/g,
         ""
       )
       .trim();
-
-  // ====================================================
-  // COMMON WORDS TO IGNORE
-  // ====================================================
 
   const ignoredWords = [
     "show",
@@ -531,11 +641,22 @@ export const searchProducts = async (
     "for",
     "with",
     "and",
+    "of",
+    "a",
+    "an",
   ];
 
-  // ====================================================
-  // SEARCH KEYWORDS
-  // ====================================================
+  /*
+   * IMPORTANT:
+   *
+   * length > 1 hata diya hai.
+   *
+   * Ab:
+   *
+   * "x"
+   *
+   * bhi valid search hai.
+   */
 
   const searchWords =
     keywordText
@@ -544,10 +665,7 @@ export const searchProducts = async (
         (word) =>
           word.trim()
       )
-      .filter(
-        (word) =>
-          word.length > 1
-      )
+      .filter(Boolean)
       .filter(
         (word) =>
           !ignoredWords.includes(
@@ -555,277 +673,359 @@ export const searchProducts = async (
           )
       );
 
-  // ====================================================
-  // LOCAL DATA MODE
-  // ====================================================
+  return {
+    searchText,
+    searchWords,
+    maxPrice,
+  };
+};
 
-  if (USE_LOCAL_DATA) {
+// ======================================================
+// SEARCH PRODUCTS
+// CLIENT-SIDE SEARCH
+//
+// Supports:
+//
+// x
+// lap
+// laptop
+// iphone
+// samsung
+// sunglasses
+// laptop under 70000
+// dell laptop under 70000
+// mobile under 30000
+// ======================================================
 
-    const localResults =
-      products.filter(
-        (product) => {
+export const searchProducts =
+  async (query) => {
+    const {
+      searchWords,
+      maxPrice,
+    } =
+      extractSearchData(
+        query
+      );
 
+    if (
+      searchWords.length === 0 &&
+      maxPrice === null
+    ) {
+      return [];
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * Backend /products/search ko use nahi kar rahe.
+     *
+     * Pehle complete product list lenge.
+     * Phir frontend par accurate matching.
+     *
+     * Isse backend ke incorrect search result ka
+     * problem solve hota hai.
+     */
+
+    const allProducts =
+      await getProducts();
+
+    if (
+      !Array.isArray(
+        allProducts
+      )
+    ) {
+      return [];
+    }
+
+    const results =
+      allProducts
+        .map((product) => {
+          const name =
+            normalizeText(
+              product?.name
+            );
+
+          const brand =
+            normalizeText(
+              product?.brand
+            );
+
+          const category =
+            normalizeText(
+              getCategoryName(
+                product
+              )
+            );
+
+          const subCategory =
+            normalizeText(
+              getSubCategoryName(
+                product
+              )
+            );
+
+          const description =
+            normalizeText(
+              product?.description
+            );
+
+          const searchableText =
+            `${name} ${brand} ${category} ${subCategory} ${description}`;
+
+          // ==========================================
           // PRICE FILTER
+          // ==========================================
+
+          const price =
+            Number(
+              product?.price || 0
+            );
 
           if (
             maxPrice !== null &&
-            Number(
-              product?.price || 0
-            ) > maxPrice
+            price > maxPrice
           ) {
-            return false;
+            return null;
           }
 
-          // IF NO KEYWORD
+          // ==========================================
+          // ALL WORDS MUST MATCH
+          // ==========================================
 
-          if (
-            searchWords.length === 0
-          ) {
-            return true;
+          const matches =
+            searchWords.every(
+              (word) =>
+                searchableText.includes(
+                  normalizeText(word)
+                )
+            );
+
+          if (!matches) {
+            return null;
           }
 
-          // PRODUCT FIELDS
+          // ==========================================
+          // SEARCH RANKING
+          // ==========================================
 
-          const productName =
-            product?.name
-              ?.toLowerCase() ||
-            "";
+          let score = 0;
 
-          const brand =
-            product?.brand
-              ?.toLowerCase() ||
-            "";
+          searchWords.forEach(
+            (word) => {
+              const normalizedWord =
+                normalizeText(
+                  word
+                );
 
-          const categoryName =
-            getCategoryName(
-              product
-            ).toLowerCase();
+              // Exact name
+              if (
+                name ===
+                normalizedWord
+              ) {
+                score += 100;
+              }
 
-          const subCategoryName =
-            getSubCategoryName(
-              product
-            ).toLowerCase();
+              // Name starts with word
+              if (
+                name.startsWith(
+                  normalizedWord
+                )
+              ) {
+                score += 80;
+              }
 
-          const description =
-            product?.description
-              ?.toLowerCase() ||
-            "";
+              // Name contains word
+              if (
+                name.includes(
+                  normalizedWord
+                )
+              ) {
+                score += 60;
+              }
 
-          // SEARCHABLE TEXT
+              // Brand
+              if (
+                brand.includes(
+                  normalizedWord
+                )
+              ) {
+                score += 50;
+              }
 
-          const searchableText =
-            `${productName} ${brand} ${categoryName} ${subCategoryName} ${description}`;
+              // Subcategory
+              if (
+                subCategory.includes(
+                  normalizedWord
+                )
+              ) {
+                score += 45;
+              }
 
-          // ALL SEARCH WORDS MUST MATCH
+              // Category
+              if (
+                category.includes(
+                  normalizedWord
+                )
+              ) {
+                score += 35;
+              }
 
-          return searchWords.every(
-            (word) =>
-              searchableText.includes(
-                word
-              )
+              // Description
+              if (
+                description.includes(
+                  normalizedWord
+                )
+              ) {
+                score += 10;
+              }
+            }
           );
-        }
-      );
 
-    console.log(
-      "LOCAL SMART SEARCH:",
-      {
-        query,
-        searchWords,
-        maxPrice,
-        resultCount:
-          localResults.length,
-      }
-    );
+          return {
+            product,
+            score,
+          };
+        })
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            b.score -
+            a.score
+        )
+        .map(
+          (item) =>
+            item.product
+        );
 
-    return localResults;
-  }
-
-  // ====================================================
-  // BACKEND SMART SEARCH
-  // ====================================================
-
-  try {
-
-    const res =
-      await API.get(
-        `/products/search?query=${encodeURIComponent(
-          query.trim()
-        )}`
-      );
-
-    const backendProducts =
-      res?.data?.data || [];
-
-    console.log(
-      "SMART SEARCH QUERY:",
-      query
-    );
-
-    console.log(
-      "SMART SEARCH KEYWORDS:",
-      searchWords
-    );
-
-    console.log(
-      "SMART SEARCH MAX PRICE:",
-      maxPrice
-    );
-
-    console.log(
-      "SMART SEARCH RESULTS:",
-      backendProducts
-    );
-
-    // ==================================================
-    // KEEP EXISTING IMAGE/CATEGORY HANDLING
-    // ==================================================
-
-    const mergedProducts =
-      backendProducts.map(
-        mergeProductImage
-      );
-
-    console.log(
-      "MERGED SEARCH RESULTS:",
-      mergedProducts
-    );
-
-    return mergedProducts;
-
-  } catch (error) {
-
-    console.error(
-      "SEARCH PRODUCTS ERROR:",
-      error
-    );
-
-    return [];
-  }
-};
+    return results;
+  };
 
 // ======================================================
 // ADD TO CART
-// GUEST CART - NO LOGIN REQUIRED
 // ======================================================
 
-export const addToCart = async (
-  product
-) => {
+export const addToCart =
+  async (product) => {
+    if (!product?.id) {
+      throw new Error(
+        "Invalid product"
+      );
+    }
 
-  if (!product?.id) {
-    throw new Error("Invalid product");
-  }
-
-  try {
-
-    let cart = [];
-
-    // ==================================================
-    // GET EXISTING LOCAL CART
-    // ==================================================
-
-    try {
-
-      cart =
+    if (USE_LOCAL_DATA) {
+      let cart =
         JSON.parse(
-          localStorage.getItem("cart")
+          localStorage.getItem(
+            "cart"
+          )
         ) || [];
 
-      if (!Array.isArray(cart)) {
-        cart = [];
+      const existing =
+        cart.find(
+          (item) =>
+            Number(item.id) ===
+            Number(product.id)
+        );
+
+      if (existing) {
+        existing.quantity =
+          (existing.quantity || 1) +
+          1;
+      } else {
+        cart.push({
+          ...product,
+          quantity: 1,
+        });
       }
 
-    } catch (error) {
-
-      console.error(
-        "INVALID LOCAL CART:",
-        error
+      localStorage.setItem(
+        "cart",
+        JSON.stringify(cart)
       );
 
-      cart = [];
-    }
-
-    // ==================================================
-    // CHECK WHETHER PRODUCT ALREADY EXISTS
-    // ==================================================
-
-    const existingProduct =
-      cart.find(
-        (item) =>
-          Number(item.id) ===
-          Number(product.id)
+      window.dispatchEvent(
+        new Event(
+          "storage"
+        )
       );
 
-    // ==================================================
-    // INCREASE QUANTITY
-    // ==================================================
+      window.dispatchEvent(
+        new Event(
+          "cartChanged"
+        )
+      );
 
-    if (existingProduct) {
-
-      existingProduct.quantity =
-        (Number(
-          existingProduct.quantity
-        ) || 1) + 1;
-
-    } else {
-
-      // ==================================================
-      // ADD NEW PRODUCT
-      // ==================================================
-
-      cart.push({
-        ...product,
-        quantity: 1,
-      });
+      return {
+        success: true,
+      };
     }
 
-    // ==================================================
-    // SAVE CART
-    // ==================================================
+    let userId =
+      localStorage.getItem(
+        "userId"
+      );
 
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(cart)
-    );
+    if (!userId) {
+      const storedUser =
+        localStorage.getItem(
+          "loggedInUser"
+        ) ||
+        localStorage.getItem(
+          "user"
+        ) ||
+        localStorage.getItem(
+          "currentUser"
+        );
 
-    console.log(
-      "GUEST CART UPDATED:",
-      cart
-    );
+      if (storedUser) {
+        try {
+          const parsedUser =
+            JSON.parse(
+              storedUser
+            );
 
-    // ==================================================
-    // NOTIFY NAVBAR + CART
-    // ==================================================
+          userId =
+            parsedUser?.id ??
+            parsedUser?.userId ??
+            parsedUser?.user?.id ??
+            parsedUser?.user?.userId;
+        } catch (error) {
+          console.error(
+            "Could not parse user:",
+            error
+          );
+        }
+      }
+    }
 
-    window.dispatchEvent(
-      new Event("cartChanged")
-    );
+    if (
+      userId === null ||
+      userId === undefined ||
+      userId === ""
+    ) {
+      throw new Error(
+        "Please login before adding products to cart."
+      );
+    }
 
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
+    const response =
+      await API.post(
+        "/cart/add",
+        null,
+        {
+          params: {
+            userId:
+              Number(userId),
 
-    window.dispatchEvent(
-      new Event("storage")
-    );
+            productId:
+              Number(
+                product.id
+              ),
 
-    // ==================================================
-    // SUCCESS
-    // ==================================================
+            quantity: 1,
+          },
+        }
+      );
 
-    return {
-      success: true,
-      message: "Product added to cart",
-    };
-
-  } catch (error) {
-
-    console.error(
-      "ADD TO CART FAILED:",
-      error
-    );
-
-    throw error;
-  }
-};
+    return response.data;
+  };

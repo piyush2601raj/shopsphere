@@ -23,7 +23,7 @@ import Register from "./Register";
 import ProtectedRoute from "./ProtectedRoute";
 import ForgotPassword from "./ForgotPassword";
 import AIChatbot from "./AIChatbot";
-
+import Profile from "./Profile";
 function AppContent() {
   const location = useLocation();
 
@@ -88,7 +88,14 @@ function AppContent() {
           />
 
           {/* ================= PROTECTED ROUTES ================= */}
-
+          <Route
+  path="/profile"
+  element={
+    <ProtectedRoute>
+      <Profile />
+    </ProtectedRoute>
+  }
+/>
           <Route
             path="/wishlist"
             element={

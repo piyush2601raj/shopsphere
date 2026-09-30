@@ -341,12 +341,12 @@ function AIChatbot() {
             // =================================================
 
             const response =
-                await axios.get(
-                    "http://localhost:8080/api/ai/chat",
-                    {
-                        params: params
-                    }
-                );
+    await axios.get(
+        "https://shopsphere-backend-production-c62b.up.railway.app/api/ai/chat",
+        {
+            params: params
+        }
+    );
 
 
             // =================================================
