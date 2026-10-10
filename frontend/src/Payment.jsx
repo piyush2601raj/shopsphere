@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import ProductImage from "./ProductImage";
 
+// ================= BACKEND URL =================
+
+const API_BASE_URL =
+  "https://shopsphere-backend-production-c62b.up.railway.app";
+
 function Payment() {
   const navigate = useNavigate();
 
@@ -34,19 +39,13 @@ function Payment() {
         ) || null;
 
       setCart(
-        Array.isArray(savedCart)
-          ? savedCart
-          : []
+        Array.isArray(savedCart) ? savedCart : []
       );
 
       setAddress(savedAddress);
-
       setCheckoutSummary(savedSummary);
     } catch (error) {
-      console.error(
-        "Payment Data Loading Error:",
-        error
-      );
+      console.error("Payment Data Loading Error:", error);
 
       setCart([]);
       setAddress({});
@@ -57,17 +56,12 @@ function Payment() {
   // ================= FALLBACK PRICE CALCULATION =================
 
   const calculatedPrice = useMemo(() => {
-    const subtotal = cart.reduce(
-      (sum, item) => {
-        const price = Number(item.price) || 0;
+    const subtotal = cart.reduce((sum, item) => {
+      const price = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 1;
 
-        const quantity =
-          Number(item.quantity) || 1;
-
-        return sum + price * quantity;
-      },
-      0
-    );
+      return sum + price * quantity;
+    }, 0);
 
     const discount =
       subtotal >= 5000
@@ -130,14 +124,12 @@ function Payment() {
         return;
       }
 
-      const script =
-        document.createElement("script");
+      const script = document.createElement("script");
 
       script.src =
         "https://checkout.razorpay.com/v1/checkout.js";
 
       script.onload = () => resolve(true);
-
       script.onerror = () => resolve(false);
 
       document.body.appendChild(script);
@@ -150,17 +142,11 @@ function Payment() {
     paymentMethod,
     paymentDetails = {}
   ) => {
-    // ==================================================
-    // GET USER ID
-    // ==================================================
+    // ================= GET USER ID =================
 
-    let userId =
-      localStorage.getItem("userId");
+    let userId = localStorage.getItem("userId");
 
-    // ==================================================
-    // FIX:
     // Login.jsx stores user as "loggedInUser"
-    // ==================================================
 
     if (!userId) {
       try {
@@ -182,9 +168,7 @@ function Payment() {
       }
     }
 
-    // ==================================================
     // KEEP OLD "user" FALLBACK ALSO
-    // ==================================================
 
     if (!userId) {
       try {
@@ -199,16 +183,11 @@ function Payment() {
           savedUser?.user?.id ||
           null;
       } catch (error) {
-        console.error(
-          "User Parsing Error:",
-          error
-        );
+        console.error("User Parsing Error:", error);
       }
     }
 
-    // ==================================================
-    // USER ID VALIDATION
-    // ==================================================
+    // ================= USER ID VALIDATION =================
 
     if (!userId) {
       throw new Error(
@@ -221,12 +200,10 @@ function Payment() {
       userId
     );
 
-    // ==================================================
-    // CREATE BACKEND ORDER
-    // ==================================================
+    // ================= CREATE BACKEND ORDER =================
 
     const response = await axios.post(
-      `https://shopsphere-backend-production-3877.up.railway.app/orders/place/${userId}`
+      `${API_BASE_URL}/orders/place/${userId}`
     );
 
     console.log(
@@ -234,8 +211,7 @@ function Payment() {
       response.data
     );
 
-    const backendOrder =
-      response.data?.data;
+    const backendOrder = response.data?.data;
 
     if (!backendOrder?.orderId) {
       throw new Error(
@@ -243,19 +219,13 @@ function Payment() {
       );
     }
 
-    // ==================================================
-    // LOCAL ORDERS
-    // ==================================================
+    // ================= LOCAL ORDERS =================
 
     const orders =
-      JSON.parse(
-        localStorage.getItem("orders")
-      ) || [];
+      JSON.parse(localStorage.getItem("orders")) || [];
 
     const newOrder = {
-      // IMPORTANT:
-      // Use the real DB order ID.
-      // Never use Date.now() here.
+      // Use the real database order ID.
       id: backendOrder.orderId,
 
       items: cart,
@@ -264,34 +234,24 @@ function Payment() {
       paymentDetails,
 
       subtotal: priceDetails.subtotal,
+      discount: priceDetails.discount,
+      deliveryCharge: priceDetails.deliveryCharge,
+      totalAmount: priceDetails.totalAmount,
 
-      discount:
-        priceDetails.discount,
-
-      deliveryCharge:
-        priceDetails.deliveryCharge,
-
-      totalAmount:
-        priceDetails.totalAmount,
-
-      status:
-        backendOrder.status || "PENDING",
+      status: backendOrder.status || "PENDING",
 
       orderDate:
         backendOrder.orderDate ||
         new Date().toISOString(),
     };
 
-    // ==================================================
-    // REPLACE EXISTING LOCAL ORDER
-    // ==================================================
+    // ================= REPLACE EXISTING LOCAL ORDER =================
 
-    const existingIndex =
-      orders.findIndex(
-        (existingOrder) =>
-          String(existingOrder.id) ===
-          String(newOrder.id)
-      );
+    const existingIndex = orders.findIndex(
+      (existingOrder) =>
+        String(existingOrder.id) ===
+        String(newOrder.id)
+    );
 
     if (existingIndex >= 0) {
       orders[existingIndex] = newOrder;
@@ -314,16 +274,12 @@ function Payment() {
     paymentDetails = {}
   ) => {
     try {
-      const order =
-        await createBackendOrder(
-          paymentMethod,
-          paymentDetails
-        );
-
-      console.log(
-        "FINAL SHOPSPHERE ORDER:",
-        order
+      const order = await createBackendOrder(
+        paymentMethod,
+        paymentDetails
       );
+
+      console.log("FINAL SHOPSPHERE ORDER:", order);
 
       localStorage.setItem(
         "latestOrder",
@@ -331,21 +287,13 @@ function Payment() {
       );
 
       localStorage.removeItem("cart");
+      localStorage.removeItem("checkoutSummary");
 
-      localStorage.removeItem(
-        "checkoutSummary"
-      );
-
-      window.dispatchEvent(
-        new Event("storage")
-      );
+      window.dispatchEvent(new Event("storage"));
 
       navigate("/order-success");
     } catch (error) {
-      console.error(
-        "Order Creation Error:",
-        error
-      );
+      console.error("Order Creation Error:", error);
 
       console.error(
         "Backend Response:",
@@ -354,12 +302,11 @@ function Payment() {
 
       alert(
         error.response?.data?.message ||
-        (typeof error.response?.data ===
-        "string"
-          ? error.response.data
-          : null) ||
-        error.message ||
-        "Unable to create order."
+          (typeof error.response?.data === "string"
+            ? error.response.data
+            : null) ||
+          error.message ||
+          "Unable to create order."
       );
 
       setProcessing(false);
@@ -374,44 +321,33 @@ function Payment() {
     try {
       setProcessing(true);
 
-      // LOAD RAZORPAY
+      // ================= LOAD RAZORPAY =================
 
-      const loaded =
-        await loadRazorpay();
+      const loaded = await loadRazorpay();
 
       if (!loaded) {
-        alert(
-          "Unable to load Razorpay Checkout."
-        );
+        alert("Unable to load Razorpay Checkout.");
 
         setProcessing(false);
-
         return;
       }
 
-      // CREATE RAZORPAY ORDER FROM BACKEND
+      // ================= CREATE RAZORPAY ORDER =================
 
-      console.log(
-        "Creating Razorpay Order..."
-      );
+      console.log("Creating Razorpay Order...");
 
       const response = await axios.post(
-        "https://shopsphere-backend-production-3877.up.railway.app/payments/create-order",
+        `${API_BASE_URL}/payments/create-order`,
         {
-          amount:
-            priceDetails.totalAmount,
+          amount: priceDetails.totalAmount,
         }
       );
 
-      console.log(
-        "Razorpay Order:",
-        response.data
-      );
+      console.log("Razorpay Order:", response.data);
 
-      const razorpayOrder =
-        response.data;
+      const razorpayOrder = response.data;
 
-      // VALIDATE BACKEND RESPONSE
+      // ================= VALIDATE BACKEND RESPONSE =================
 
       if (
         !razorpayOrder ||
@@ -423,99 +359,77 @@ function Payment() {
         );
 
         setProcessing(false);
-
         return;
       }
 
       // ================= RAZORPAY OPTIONS =================
 
       const options = {
-        /*
-          Better:
-          later key ko .env file me rakhenge.
-        */
-
+        // Existing Test Mode key retained.
         key: "rzp_test_SiUqjfu32UIx4B",
 
-        amount:
-          razorpayOrder.amount,
+        amount: razorpayOrder.amount,
 
-        currency:
-          razorpayOrder.currency ||
-          "INR",
+        currency: razorpayOrder.currency || "INR",
 
         name: "ShopSphere",
 
-        description:
-          "ShopSphere Order Payment",
+        description: "ShopSphere Order Payment",
 
-        order_id:
-          razorpayOrder.id,
+        order_id: razorpayOrder.id,
 
         // ================= CUSTOMER INFO =================
 
         prefill: {
           name: address?.name || "",
-
-          contact:
-            address?.phone || "",
-
+          contact: address?.phone || "",
           email: "",
         },
 
         // ================= SUCCESS HANDLER =================
 
-        handler: async function (
-          paymentResponse
-        ) {
+        handler: async function (paymentResponse) {
           try {
             console.log(
               "Payment Response:",
               paymentResponse
             );
 
-            // VERIFY PAYMENT ON BACKEND
+            // ================= VERIFY PAYMENT =================
 
-            const verifyResponse =
-              await axios.post(
-                "https://shopsphere-backend-production-3877.up.railway.app/payments/verify",
-                {
-                  orderId:
-                    paymentResponse.razorpay_order_id,
+            const verifyResponse = await axios.post(
+              `${API_BASE_URL}/payments/verify`,
+              {
+                orderId:
+                  paymentResponse.razorpay_order_id,
 
-                  paymentId:
-                    paymentResponse.razorpay_payment_id,
+                paymentId:
+                  paymentResponse.razorpay_payment_id,
 
-                  signature:
-                    paymentResponse.razorpay_signature,
-                }
-              );
+                signature:
+                  paymentResponse.razorpay_signature,
+              }
+            );
 
             console.log(
               "Verification Response:",
               verifyResponse.data
             );
 
-            // ================= SUCCESS =================
+            // ================= PAYMENT SUCCESS =================
 
             if (
-              verifyResponse.data?.status ===
-              "SUCCESS"
+              verifyResponse.data?.status === "SUCCESS"
             ) {
-              await completeOrder(
-                "ONLINE",
-                {
-                  razorpayOrderId:
-                    paymentResponse.razorpay_order_id,
+              await completeOrder("ONLINE", {
+                razorpayOrderId:
+                  paymentResponse.razorpay_order_id,
 
-                  razorpayPaymentId:
-                    paymentResponse.razorpay_payment_id,
-                }
-              );
+                razorpayPaymentId:
+                  paymentResponse.razorpay_payment_id,
+              });
             } else {
-              alert(
-                "Payment verification failed."
-              );
+              alert("Payment verification failed.");
 
               setProcessing(false);
             }
@@ -525,9 +439,7 @@ function Payment() {
               error
             );
 
-            alert(
-              "Unable to verify payment."
-            );
+            alert("Unable to verify payment.");
 
             setProcessing(false);
           }
@@ -537,9 +449,7 @@ function Payment() {
 
         modal: {
           ondismiss: function () {
-            console.log(
-              "Razorpay Checkout Closed"
-            );
+            console.log("Razorpay Checkout Closed");
 
             setProcessing(false);
           },
@@ -554,34 +464,27 @@ function Payment() {
 
       // ================= OPEN RAZORPAY =================
 
-      const razorpay =
-        new window.Razorpay(options);
+      const razorpay = new window.Razorpay(options);
 
-      // PAYMENT FAILURE EVENT
+      // ================= PAYMENT FAILURE EVENT =================
 
-      razorpay.on(
-        "payment.failed",
-        function (response) {
-          console.error(
-            "Payment Failed:",
-            response.error
-          );
+      razorpay.on("payment.failed", function (response) {
+        console.error(
+          "Payment Failed:",
+          response.error
+        );
 
-          alert(
-            response.error?.description ||
+        alert(
+          response.error?.description ||
             "Payment failed."
-          );
+        );
 
-          setProcessing(false);
-        }
-      );
+        setProcessing(false);
+      });
 
       razorpay.open();
     } catch (error) {
-      console.error(
-        "Razorpay Payment Error:",
-        error
-      );
+      console.error("Razorpay Payment Error:", error);
 
       if (error.response) {
         console.error(
@@ -611,13 +514,10 @@ function Payment() {
     try {
       await completeOrder("COD");
     } catch (error) {
-      console.error(
-        "COD Order Error:",
-        error
-      );
+      console.error("COD Order Error:", error);
 
-      // completeOrder already shows
-      // backend error and resets processing.
+      // completeOrder already shows the error
+      // and resets processing.
     }
   };
 
@@ -625,20 +525,13 @@ function Payment() {
 
   const handlePayment = () => {
     if (!method) {
-      alert(
-        "Please Select Payment Method"
-      );
-
+      alert("Please Select Payment Method");
       return;
     }
 
     if (cart.length === 0) {
-      alert(
-        "Your Cart Is Empty"
-      );
-
+      alert("Your Cart Is Empty");
       navigate("/products");
-
       return;
     }
 
@@ -647,18 +540,13 @@ function Payment() {
       !address?.phone ||
       !address?.address
     ) {
-      alert(
-        "Delivery Address Is Missing"
-      );
-
+      alert("Delivery Address Is Missing");
       navigate("/checkout");
-
       return;
     }
 
     if (method === "ONLINE") {
       payWithRazorpay();
-
       return;
     }
 
@@ -687,7 +575,6 @@ function Payment() {
         }}
       >
         <div className="text-center">
-
           <div
             style={{
               fontSize: "80px",
@@ -707,13 +594,10 @@ function Payment() {
           <button
             type="button"
             className="btn btn-primary btn-lg"
-            onClick={() =>
-              navigate("/products")
-            }
+            onClick={() => navigate("/products")}
           >
             Browse Products
           </button>
-
         </div>
       </div>
     );
@@ -729,30 +613,22 @@ function Payment() {
       }}
     >
       <div className="container">
-
         {/* ================= HEADER ================= */}
 
         <div className="mb-4">
-
-          <h1 className="fw-bold">
-            Secure Payment
-          </h1>
+          <h1 className="fw-bold">Secure Payment</h1>
 
           <p className="text-muted">
-            Choose your preferred payment method
-            and complete your order.
+            Choose your preferred payment method and
+            complete your order.
           </p>
-
         </div>
 
         {/* ================= STEPS ================= */}
 
         <div className="card border-0 shadow-sm rounded-4 mb-4">
-
           <div className="card-body py-3">
-
             <div className="d-flex justify-content-center align-items-center flex-wrap gap-3">
-
               <span className="badge bg-success fs-6 px-3 py-2">
                 ✓ Cart
               </span>
@@ -774,25 +650,18 @@ function Payment() {
               <span className="badge bg-secondary fs-6 px-3 py-2">
                 4. Complete
               </span>
-
             </div>
-
           </div>
-
         </div>
 
         <div className="row g-4">
-
           {/* ================= LEFT SIDE ================= */}
 
           <div className="col-lg-8">
-
             {/* ================= PAYMENT METHODS ================= */}
 
             <div className="card border-0 shadow-sm rounded-4">
-
               <div className="card-body p-4">
-
                 <h4 className="fw-bold mb-4">
                   Select Payment Method
                 </h4>
@@ -808,24 +677,16 @@ function Payment() {
                   style={{
                     cursor: "pointer",
                   }}
-                  onClick={() =>
-                    setMethod("ONLINE")
-                  }
+                  onClick={() => setMethod("ONLINE")}
                 >
-
                   <div className="form-check">
-
                     <input
                       className="form-check-input"
                       type="radio"
                       name="payment"
                       id="onlinePayment"
-                      checked={
-                        method === "ONLINE"
-                      }
-                      onChange={() =>
-                        setMethod("ONLINE")
-                      }
+                      checked={method === "ONLINE"}
+                      onChange={() => setMethod("ONLINE")}
                     />
 
                     <label
@@ -834,22 +695,19 @@ function Payment() {
                     >
                       💳 Online Payment
                     </label>
-
                   </div>
 
                   <p className="text-muted mt-2 mb-0 ms-4">
-                    Pay securely using UPI, Cards,
-                    Net Banking or other available
-                    payment options.
+                    Pay securely using UPI, Cards, Net
+                    Banking or other available payment
+                    options.
                   </p>
-
                 </div>
 
                 {/* ================= ONLINE INFO ================= */}
 
                 {method === "ONLINE" && (
                   <div className="alert alert-info">
-
                     <h6 className="fw-bold">
                       Secure Razorpay Checkout
                     </h6>
@@ -861,7 +719,6 @@ function Payment() {
                       Banking or other supported payment
                       methods.
                     </p>
-
                   </div>
                 )}
 
@@ -876,24 +733,16 @@ function Payment() {
                   style={{
                     cursor: "pointer",
                   }}
-                  onClick={() =>
-                    setMethod("COD")
-                  }
+                  onClick={() => setMethod("COD")}
                 >
-
                   <div className="form-check">
-
                     <input
                       className="form-check-input"
                       type="radio"
                       name="payment"
                       id="codPayment"
-                      checked={
-                        method === "COD"
-                      }
-                      onChange={() =>
-                        setMethod("COD")
-                      }
+                      checked={method === "COD"}
+                      onChange={() => setMethod("COD")}
                     />
 
                     <label
@@ -902,13 +751,11 @@ function Payment() {
                     >
                       📦 Cash On Delivery
                     </label>
-
                   </div>
 
                   <p className="text-muted mt-2 mb-0 ms-4">
                     Pay when your order is delivered.
                   </p>
-
                 </div>
 
                 {/* ================= PAYMENT BUTTON ================= */}
@@ -935,23 +782,17 @@ function Payment() {
                 </button>
 
                 <div className="text-center mt-3">
-
                   <small className="text-success fw-semibold">
                     🔒 Secure Checkout
                   </small>
-
                 </div>
-
               </div>
-
             </div>
-
           </div>
 
           {/* ================= RIGHT SIDE ================= */}
 
           <div className="col-lg-4">
-
             <div
               className="card border-0 shadow-sm rounded-4"
               style={{
@@ -959,29 +800,20 @@ function Payment() {
                 top: "100px",
               }}
             >
-
               <div className="card-body p-4">
-
                 {/* ================= ADDRESS ================= */}
 
                 <div className="mb-4">
-
                   <div className="d-flex justify-content-between align-items-center">
-
-                    <h5 className="fw-bold">
-                      Deliver To
-                    </h5>
+                    <h5 className="fw-bold">Deliver To</h5>
 
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-primary"
-                      onClick={() =>
-                        navigate("/checkout")
-                      }
+                      onClick={() => navigate("/checkout")}
                     >
                       Change
                     </button>
-
                   </div>
 
                   <p className="fw-semibold mb-1">
@@ -993,14 +825,12 @@ function Payment() {
                   </p>
 
                   <p className="text-muted small mb-1">
-                    {address.city} -{" "}
-                    {address.pincode}
+                    {address.city} - {address.pincode}
                   </p>
 
                   <p className="text-muted small mb-0">
                     Phone: {address.phone}
                   </p>
-
                 </div>
 
                 <hr />
@@ -1012,10 +842,8 @@ function Payment() {
                 </h4>
 
                 <div className="d-flex justify-content-between mb-3">
-
                   <span className="text-muted">
-                    Price (
-                    {priceDetails.totalItems} items)
+                    Price ({priceDetails.totalItems} items)
                   </span>
 
                   <span>
@@ -1024,11 +852,9 @@ function Payment() {
                       "en-IN"
                     )}
                   </span>
-
                 </div>
 
                 <div className="d-flex justify-content-between mb-3">
-
                   <span className="text-muted">
                     Discount
                   </span>
@@ -1039,11 +865,9 @@ function Payment() {
                       "en-IN"
                     )}
                   </span>
-
                 </div>
 
                 <div className="d-flex justify-content-between mb-3">
-
                   <span className="text-muted">
                     Delivery Charges
                   </span>
@@ -1059,16 +883,12 @@ function Payment() {
                       ? "FREE"
                       : `₹${priceDetails.deliveryCharge}`}
                   </span>
-
                 </div>
 
                 <hr />
 
                 <div className="d-flex justify-content-between">
-
-                  <h5 className="fw-bold">
-                    Total Amount
-                  </h5>
+                  <h5 className="fw-bold">Total Amount</h5>
 
                   <h5 className="fw-bold text-success">
                     ₹
@@ -1076,20 +896,15 @@ function Payment() {
                       "en-IN"
                     )}
                   </h5>
-
                 </div>
 
                 {priceDetails.discount > 0 && (
-
                   <div className="alert alert-success mt-3 mb-0">
-
                     🎉 You saved ₹
                     {priceDetails.discount.toLocaleString(
                       "en-IN"
                     )}
-
                   </div>
-
                 )}
 
                 {/* ================= ORDER SUMMARY ================= */}
@@ -1100,59 +915,47 @@ function Payment() {
                   Order Summary
                 </h5>
 
-                {cart.map((item) => {
-                  return (
+                {cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="d-flex align-items-center gap-3 mb-3"
+                  >
                     <div
-                      key={item.id}
-                      className="d-flex align-items-center gap-3 mb-3"
+                      className="border rounded p-1"
+                      style={{
+                        width: "65px",
+                        height: "65px",
+                        flexShrink: 0,
+                      }}
                     >
-
-                      <div
-                        className="border rounded p-1"
-                        style={{
-                          width: "65px",
-                          height: "65px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <ProductImage
-                          product={item}
-                          height="55px"
-                        />
-                      </div>
-
-                      <div
-                        style={{
-                          minWidth: 0,
-                        }}
-                      >
-
-                        <div
-                          className="fw-semibold text-truncate"
-                          title={item.name}
-                        >
-                          {item.name}
-                        </div>
-
-                        <small className="text-muted">
-                          Qty:{" "}
-                          {Number(item.quantity) || 1}
-                        </small>
-
-                      </div>
-
+                      <ProductImage
+                        product={item}
+                        height="55px"
+                      />
                     </div>
-                  );
-                })}
 
+                    <div
+                      style={{
+                        minWidth: 0,
+                      }}
+                    >
+                      <div
+                        className="fw-semibold text-truncate"
+                        title={item.name}
+                      >
+                        {item.name}
+                      </div>
+
+                      <small className="text-muted">
+                        Qty: {Number(item.quantity) || 1}
+                      </small>
+                    </div>
+                  </div>
+                ))}
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       </div>
     </div>
   );

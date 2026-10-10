@@ -18,6 +18,12 @@ public class Payment {
 
     private String transactionId;
 
+    // Razorpay identifiers
+    @Column(unique = true)
+    private String razorpayOrderId;
+
+    private String razorpayPaymentId;
+
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
 
@@ -26,6 +32,7 @@ public class Payment {
     private Order order;
 
     // GETTERS
+
     public Long getId() {
         return id;
     }
@@ -42,6 +49,14 @@ public class Payment {
         return transactionId;
     }
 
+    public String getRazorpayOrderId() {
+        return razorpayOrderId;
+    }
+
+    public String getRazorpayPaymentId() {
+        return razorpayPaymentId;
+    }
+
     public PaymentStatus getStatus() {
         return status;
     }
@@ -51,6 +66,7 @@ public class Payment {
     }
 
     // SETTERS
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -65,6 +81,14 @@ public class Payment {
 
     public void setTransactionId(String transactionId) {
         this.transactionId = transactionId;
+    }
+
+    public void setRazorpayOrderId(String razorpayOrderId) {
+        this.razorpayOrderId = razorpayOrderId;
+    }
+
+    public void setRazorpayPaymentId(String razorpayPaymentId) {
+        this.razorpayPaymentId = razorpayPaymentId;
     }
 
     public void setStatus(PaymentStatus status) {
