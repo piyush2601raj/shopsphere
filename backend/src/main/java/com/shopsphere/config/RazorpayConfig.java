@@ -16,6 +16,33 @@ public class RazorpayConfig {
 
     @Bean
     public RazorpayClient razorpayClient() throws Exception {
+
+        // Validate Razorpay credentials configuration
+        if (keyId == null || keyId.isBlank()) {
+            throw new IllegalStateException(
+                "Razorpay Key ID is missing. Check RAZORPAY_KEY_ID in Railway."
+            );
+        }
+
+        if (keySecret == null || keySecret.isBlank()) {
+            throw new IllegalStateException(
+                "Razorpay Secret is missing. Check RAZORPAY_KEY_SECRET in Railway."
+            );
+        }
+
+        // Safe diagnostic logging: never print the actual secret
+        String keyIdPrefix =
+            keyId.substring(0, Math.min(12, keyId.length()));
+
+        System.out.println(
+            "[Razorpay Config] Key ID prefix: " + keyIdPrefix
+        );
+
+        System.out.println(
+            "[Razorpay Config] Secret configured: true"
+        );
+
+        // Initialize Razorpay client
         return new RazorpayClient(keyId, keySecret);
     }
 }
