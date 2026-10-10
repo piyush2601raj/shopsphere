@@ -6,7 +6,7 @@ const API_BASE_URL = (
 ).replace(/\/+$/, "");
 
 const API = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: API_BASE_URL,
 });
 
 export default API;
