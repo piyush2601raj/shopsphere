@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ProductImage from "./ProductImage";
 import axios from "axios";
-
-// Configure VITE_API_URL to your deployed Spring Boot backend URL in production.
-// Example: https://your-backend.up.railway.app
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/$/, "");
-
 import OrderTimeline from "./Components/OrderTimeline";
 import DeliveryDetails from "./Components/DeliveryDetails";
 import ReturnRefund from "./Components/ReturnRefundFixed";
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  "https://shopsphere-backend-production-c62b.up.railway.app"
+).replace(/\/+$/, "");
+
 function TrackOrder() {
   const { id } = useParams();
   const navigate = useNavigate();
