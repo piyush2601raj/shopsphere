@@ -143,6 +143,7 @@ const OrderTimeline = ({
         day: "2-digit",
         month: "long",
         year: "numeric",
+        timeZone: "Asia/Kolkata",
       }
     );
 
@@ -466,23 +467,16 @@ const OrderTimeline = ({
                         {/* ================= DATE ================= */}
 
 
-                        {completed &&
-                          stage.date && (
+                        {stage.date && (
 
-                            <small
-                              className="
-                                text-muted
-                                d-block
-                              "
-                            >
+                          <small
+                            className="text-muted d-block"
+                          >
+                            {!completed && "Estimated: "}
+                            {formatDate(stage.date)}
+                          </small>
 
-                              {formatDate(
-                                stage.date
-                              )}
-
-                            </small>
-
-                          )}
+                        )}
 
 
                         {/* ================= DESCRIPTION ================= */}

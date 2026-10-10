@@ -247,9 +247,17 @@ function TrackOrder() {
           updatedOrder.statusStartedAt = realOrderDate;
         }
 
-        // Accelerated demo clock starts once and persists across refreshes.
-        if (!updatedOrder.demoStartedAt) {
-          updatedOrder.demoStartedAt = new Date().toISOString();
+        // Version the accelerated demo so older multi-day demo timestamps
+        // are reset once. After this migration, refreshes preserve progress.
+        if (updatedOrder.demoTimerVersion !== 2 || !updatedOrder.demoStartedAt) {
+          const demoStart = new Date().toISOString();
+          updatedOrder.demoTimerVersion = 2;
+          updatedOrder.demoStartedAt = demoStart;
+          updatedOrder.status = "CONFIRMED";
+          delete updatedOrder.packedAt;
+          delete updatedOrder.shippedAt;
+          delete updatedOrder.outForDeliveryAt;
+          delete updatedOrder.deliveredAt;
         }
 
         // ================= DELIVERY BOY =================
@@ -416,7 +424,7 @@ function TrackOrder() {
   // Each stage advances every 10 seconds (total demo: 40 seconds).
   // Stage timestamps are persisted in localStorage so refreshes do not reset the demo.
   useEffect(() => {
-    if (!order?.demoStartedAt || status === "CANCELLED") return;
+    if (!order?.demoStartedAt || order?.status === "CANCELLED" || status === "CANCELLED") return;
 
     const updateDemoStatus = () => {
       const startedAt = new Date(order.demoStartedAt).getTime();
@@ -818,9 +826,10 @@ function TrackOrder() {
         }
       : null;
 
-  // Expected delivery is the simulated delivery date.
-  const expectedDelivery =
-    deliveredDate;
+  // In the accelerated demo, expected delivery is 40 seconds after demo start.
+  // Format this as a date in OrderTimeline; actual stage timestamps are saved
+  // by the timer as each stage is reached.
+  const expectedDelivery = deliveredDate;
 
   // Return/Replacement timeline begins on the simulated
   // Delivered date, never before it.
