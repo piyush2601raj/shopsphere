@@ -6,6 +6,9 @@ import axios from "axios";
 import OrderTimeline from "./Components/OrderTimeline";
 import DeliveryDetails from "./Components/DeliveryDetails";
 import ReturnRefund from "./Components/ReturnRefundFixed";
+
+// Configure this in the frontend deployment environment.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 function TrackOrder() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -300,7 +303,7 @@ function TrackOrder() {
 
         try {
           const returnResponse = await axios.get(
-            `http://localhost:8080/api/returns/order/${selectedOrder.id}`
+            `${API_BASE_URL}/api/returns/order/${selectedOrder.id}`
           );
 
           const backendReturn = returnResponse.data;
@@ -453,7 +456,7 @@ function TrackOrder() {
         // status synchronized.
         axios
           .put(
-            `http://localhost:8080/orders/${order.id}/status`,
+            `${API_BASE_URL}/orders/${order.id}/status`,
             null,
             {
               params: {
@@ -498,7 +501,7 @@ function TrackOrder() {
     const loadReturnStatus = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/returns/order/${order.id}`
+          `${API_BASE_URL}/api/returns/order/${order.id}`
         );
 
         if (cancelled) return;
@@ -673,7 +676,7 @@ function TrackOrder() {
         }
 
         const response = await axios.put(
-          `http://localhost:8080/api/returns/${returnId}/status`,
+          `${API_BASE_URL}/api/returns/${returnId}/status`,
           null,
           {
             params: {
@@ -1038,7 +1041,7 @@ const deliveredDate =
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/returns",
+        `${API_BASE_URL}/api/returns`,
         null,
         {
           params: {
