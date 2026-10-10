@@ -108,7 +108,6 @@ const OrderTimeline = ({
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
         hour12: true,
         timeZone: "Asia/Kolkata",
       }
@@ -468,15 +467,10 @@ const OrderTimeline = ({
                         {/* ================= DATE ================= */}
 
 
-                        {stage.date && (
-
-                          <small
-                            className="text-muted d-block"
-                          >
-                            {!completed && "Estimated: "}
+                        {completed && stage.date && (
+                          <small className="text-muted d-block">
                             {formatDate(stage.date)}
                           </small>
-
                         )}
 
 

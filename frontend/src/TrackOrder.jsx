@@ -247,35 +247,11 @@ function TrackOrder() {
           updatedOrder.statusStartedAt = realOrderDate;
         }
 
-        // Create one stable, randomized delivery schedule per order.
-        // The status demo still advances quickly, but displayed timestamps
-        // look like a realistic multi-day shipment and survive page refreshes.
-        if (!updatedOrder.demoTimelineDates) {
-          const scheduleBase = new Date(realOrderDate);
-          const randomStageDate = (daysAfterOrder) => {
-            const date = new Date(scheduleBase);
-            date.setDate(date.getDate() + daysAfterOrder);
-            date.setHours(9 + Math.floor(Math.random() * 10),
-              Math.floor(Math.random() * 60),
-              Math.floor(Math.random() * 60), 0);
-            return date.toISOString();
-          };
-
-          updatedOrder.demoTimelineDates = {
-            packedAt: randomStageDate(1),
-            shippedAt: randomStageDate(2),
-            outForDeliveryAt: randomStageDate(4),
-            deliveredAt: randomStageDate(5),
-            expectedDelivery: randomStageDate(5),
-          };
-        }
-
-        // Version the accelerated demo so older multi-day demo timestamps
-        // are reset once. After this migration, refreshes preserve progress.
-        if (updatedOrder.demoTimerVersion !== 2 || !updatedOrder.demoStartedAt) {
-          const demoStart = new Date().toISOString();
-          updatedOrder.demoTimerVersion = 2;
-          updatedOrder.demoStartedAt = demoStart;
+        // Multi-day demo starts from order placement. Version 3 clears old
+        // accelerated-demo timestamps so future stages do not appear early.
+        if (updatedOrder.demoTimerVersion !== 3 || !updatedOrder.demoStartedAt) {
+          updatedOrder.demoTimerVersion = 3;
+          updatedOrder.demoStartedAt = realOrderDate;
           updatedOrder.status = "CONFIRMED";
           delete updatedOrder.packedAt;
           delete updatedOrder.shippedAt;
@@ -443,9 +419,10 @@ function TrackOrder() {
     loadOrder();
   }, [id]);
 
-  // ================= ACCELERATED DEMO STATUS TIMER =================
-  // Each stage advances every 10 seconds (total demo: 40 seconds).
-  // Stage timestamps are persisted in localStorage so refreshes do not reset the demo.
+  // ================= MULTI-DAY DEMO STATUS TIMER =================
+  // Day 0: Confirmed, Day 1: Packed, Day 2: Shipped,
+  // Day 4: Out for Delivery, Day 5: Delivered.
+  // A stage timestamp is saved only when that stage is reached.
   useEffect(() => {
     if (!order?.demoStartedAt || order?.status === "CANCELLED" || status === "CANCELLED") return;
 
@@ -453,20 +430,21 @@ function TrackOrder() {
       const startedAt = new Date(order.demoStartedAt).getTime();
       if (Number.isNaN(startedAt)) return;
 
-      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      const elapsedDays = Math.max(0, Math.floor((Date.now() - startedAt) / (24 * 60 * 60 * 1000)));
       const stages = [
-        { status: "CONFIRMED", seconds: 0, field: null },
-        { status: "PACKED", seconds: 10, field: "packedAt" },
-        { status: "SHIPPED", seconds: 20, field: "shippedAt" },
-        { status: "OUT_FOR_DELIVERY", seconds: 30, field: "outForDeliveryAt" },
-        { status: "DELIVERED", seconds: 40, field: "deliveredAt" },
+        { status: "CONFIRMED", day: 0, field: null },
+        { status: "PACKED", day: 1, field: "packedAt" },
+        { status: "SHIPPED", day: 2, field: "shippedAt" },
+        { status: "OUT_FOR_DELIVERY", day: 4, field: "outForDeliveryAt" },
+        { status: "DELIVERED", day: 5, field: "deliveredAt" },
       ];
-      const currentStage = [...stages].reverse().find((stage) => elapsedSeconds >= stage.seconds) || stages[0];
+      const currentStage = [...stages].reverse().find((stage) => elapsedDays >= stage.day) || stages[0];
       const updatedOrder = { ...order };
 
       stages.forEach((stage) => {
-        if (stage.field && elapsedSeconds >= stage.seconds && !updatedOrder[stage.field]) {
-          updatedOrder[stage.field] = new Date(startedAt + stage.seconds * 1000).toISOString();
+        if (stage.field && elapsedDays >= stage.day && !updatedOrder[stage.field]) {
+          // Use the scheduled stage date, with a distinct saved timestamp.
+          updatedOrder[stage.field] = new Date(startedAt + stage.day * 24 * 60 * 60 * 1000).toISOString();
         }
       });
       updatedOrder.status = currentStage.status;
@@ -481,7 +459,7 @@ function TrackOrder() {
     };
 
     updateDemoStatus();
-    const intervalId = setInterval(updateDemoStatus, 1000);
+    const intervalId = setInterval(updateDemoStatus, 60 * 1000);
     return () => clearInterval(intervalId);
   }, [order?.id, order?.demoStartedAt, order?.status, order?.packedAt, order?.shippedAt, order?.outForDeliveryAt, order?.deliveredAt, status]);
 
@@ -791,22 +769,15 @@ function TrackOrder() {
     parseOrderDate(order?.statusStartedAt) ||
     new Date();
 
-  const timelineDates = order?.demoTimelineDates || {};
   const orderedDate =
     parseOrderDate(order?.orderDate) ||
     parseOrderDate(order?.orderedAt) ||
     orderStartDate;
-
-  // Display the saved randomized schedule rather than the accelerated
-  // 10-second timer timestamps, which would all appear in the same minute.
-  const packedDate =
-    parseOrderDate(timelineDates.packedAt) || new Date(orderStartDate.getTime() + 1 * 86400000);
-  const shippedDate =
-    parseOrderDate(timelineDates.shippedAt) || new Date(orderStartDate.getTime() + 2 * 86400000);
-  const outForDeliveryDate =
-    parseOrderDate(timelineDates.outForDeliveryAt) || new Date(orderStartDate.getTime() + 4 * 86400000);
-  const deliveredDate =
-    parseOrderDate(timelineDates.deliveredAt) || new Date(orderStartDate.getTime() + 5 * 86400000);
+  // Do not invent timestamps for stages that have not happened yet.
+  const packedDate = parseOrderDate(order?.packedAt);
+  const shippedDate = parseOrderDate(order?.shippedAt);
+  const outForDeliveryDate = parseOrderDate(order?.outForDeliveryAt);
+  const deliveredDate = parseOrderDate(order?.deliveredAt);
 
   // ================= RETURN DEMO DATES =================
   // Displayed dates/times are intentionally different for each stage.
@@ -851,11 +822,10 @@ function TrackOrder() {
         }
       : null;
 
-  // Keep expected delivery realistic (5 days after order placement).
-  // The accelerated demo itself still completes in 40 seconds.
-  const expectedDelivery =
-    parseOrderDate(timelineDates.expectedDelivery) ||
-    new Date(orderStartDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+  // Expected delivery is five days after order placement, matching the demo flow.
+  const expectedDelivery = new Date(
+    orderStartDate.getTime() + 5 * 24 * 60 * 60 * 1000
+  );
 
   // Return/Replacement timeline begins on the simulated
   // Delivered date, never before it.
