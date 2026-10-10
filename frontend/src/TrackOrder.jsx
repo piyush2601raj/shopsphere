@@ -247,11 +247,12 @@ function TrackOrder() {
           updatedOrder.statusStartedAt = realOrderDate;
         }
 
-        // Multi-day demo starts from order placement. Version 3 clears old
-        // accelerated-demo timestamps so future stages do not appear early.
-        if (updatedOrder.demoTimerVersion !== 3 || !updatedOrder.demoStartedAt) {
-          updatedOrder.demoTimerVersion = 3;
-          updatedOrder.demoStartedAt = realOrderDate;
+        // Version 4: preserve the real order date, but start the demo clock
+        // when this tracking page is first initialized. This prevents old
+        // orders from getting stuck or jumping straight to DELIVERED.
+        if (updatedOrder.demoTimerVersion !== 4 || !updatedOrder.demoStartedAt) {
+          updatedOrder.demoTimerVersion = 4;
+          updatedOrder.demoStartedAt = new Date().toISOString();
           updatedOrder.status = "CONFIRMED";
           delete updatedOrder.packedAt;
           delete updatedOrder.shippedAt;
@@ -420,17 +421,33 @@ function TrackOrder() {
   }, [id]);
 
   // ================= MULTI-DAY DEMO STATUS TIMER =================
-  // Day 0: Confirmed, Day 1: Packed, Day 2: Shipped,
-  // Day 4: Out for Delivery, Day 5: Delivered.
-  // A stage timestamp is saved only when that stage is reached.
+  // Demo mode: one simulated day passes every 30 seconds.
+  // Confirmed = day 0, Packed = day 1, Shipped = day 2,
+  // Out for Delivery = day 4, Delivered = day 5.
+  // Timeline timestamps are saved only when each stage is reached.
   useEffect(() => {
-    if (!order?.demoStartedAt || order?.status === "CANCELLED" || status === "CANCELLED") return;
+    if (
+      !order?.demoStartedAt ||
+      order?.status === "CANCELLED" ||
+      status === "CANCELLED"
+    ) {
+      return;
+    }
 
     const updateDemoStatus = () => {
-      const startedAt = new Date(order.demoStartedAt).getTime();
-      if (Number.isNaN(startedAt)) return;
+      const demoStartedAtMs = new Date(order.demoStartedAt).getTime();
+      if (Number.isNaN(demoStartedAtMs)) return;
 
-      const elapsedDays = Math.max(0, Math.floor((Date.now() - startedAt) / (24 * 60 * 60 * 1000)));
+      const simulatedDay = Math.max(
+        0,
+        Math.floor((Date.now() - demoStartedAtMs) / 30000)
+      );
+
+      const orderDateValue =
+        order.orderDate || order.orderedAt || order.createdAt || order.demoStartedAt;
+      const orderDateMs = new Date(orderDateValue).getTime();
+      if (Number.isNaN(orderDateMs)) return;
+
       const stages = [
         { status: "CONFIRMED", day: 0, field: null },
         { status: "PACKED", day: 1, field: "packedAt" },
@@ -438,19 +455,36 @@ function TrackOrder() {
         { status: "OUT_FOR_DELIVERY", day: 4, field: "outForDeliveryAt" },
         { status: "DELIVERED", day: 5, field: "deliveredAt" },
       ];
-      const currentStage = [...stages].reverse().find((stage) => elapsedDays >= stage.day) || stages[0];
+
+      const currentStage =
+        [...stages].reverse().find((stage) => simulatedDay >= stage.day) ||
+        stages[0];
+
       const updatedOrder = { ...order };
 
       stages.forEach((stage) => {
-        if (stage.field && elapsedDays >= stage.day && !updatedOrder[stage.field]) {
-          // Use the scheduled stage date, with a distinct saved timestamp.
-          updatedOrder[stage.field] = new Date(startedAt + stage.day * 24 * 60 * 60 * 1000).toISOString();
+        if (
+          stage.field &&
+          simulatedDay >= stage.day &&
+          !updatedOrder[stage.field]
+        ) {
+          // Display dates spread across the expected 5-day delivery window.
+          // Only save a stage timestamp once that stage becomes current/reached.
+          updatedOrder[stage.field] = new Date(
+            orderDateMs + stage.day * 24 * 60 * 60 * 1000
+          ).toISOString();
         }
       });
+
       updatedOrder.status = currentStage.status;
 
-      const changed = updatedOrder.status !== order.status ||
-        stages.some((stage) => stage.field && updatedOrder[stage.field] !== order[stage.field]);
+      const changed =
+        updatedOrder.status !== order.status ||
+        stages.some(
+          (stage) =>
+            stage.field && updatedOrder[stage.field] !== order[stage.field]
+        );
+
       if (changed) {
         updateOrderInStorage(updatedOrder);
         setOrder(updatedOrder);
@@ -459,9 +493,18 @@ function TrackOrder() {
     };
 
     updateDemoStatus();
-    const intervalId = setInterval(updateDemoStatus, 60 * 1000);
+    const intervalId = setInterval(updateDemoStatus, 1000);
     return () => clearInterval(intervalId);
-  }, [order?.id, order?.demoStartedAt, order?.status, order?.packedAt, order?.shippedAt, order?.outForDeliveryAt, order?.deliveredAt, status]);
+  }, [
+    order?.id,
+    order?.demoStartedAt,
+    order?.status,
+    order?.packedAt,
+    order?.shippedAt,
+    order?.outForDeliveryAt,
+    order?.deliveredAt,
+    status,
+  ]);
 
   // ================= REAL RETURN STATUS POLLING =================
 
