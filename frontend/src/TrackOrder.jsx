@@ -247,11 +247,12 @@ function TrackOrder() {
           updatedOrder.statusStartedAt = realOrderDate;
         }
 
-        // Multi-day demo starts from order placement. Version 3 clears old
-        // accelerated-demo timestamps so future stages do not appear early.
-        if (updatedOrder.demoTimerVersion !== 3 || !updatedOrder.demoStartedAt) {
-          updatedOrder.demoTimerVersion = 3;
-          updatedOrder.demoStartedAt = realOrderDate;
+        // Version 4: preserve the real order-placement date for display, but
+        // start the accelerated demo clock when tracking is initialized.
+        // This prevents older orders from jumping straight to Delivered.
+        if (updatedOrder.demoTimerVersion !== 4 || !updatedOrder.demoStartedAt) {
+          updatedOrder.demoTimerVersion = 4;
+          updatedOrder.demoStartedAt = new Date().toISOString();
           updatedOrder.status = "CONFIRMED";
           delete updatedOrder.packedAt;
           delete updatedOrder.shippedAt;
