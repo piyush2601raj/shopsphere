@@ -366,7 +366,7 @@ function Payment() {
 
       const options = {
         // Existing Test Mode key retained.
-        key: "rzp_test_SiUqjfu32UIx4B",
+        key: "rzp_test_TmNV9P9nkR5Io9",
 
         amount: razorpayOrder.amount,
 
