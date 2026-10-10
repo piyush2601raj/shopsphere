@@ -5,7 +5,9 @@ import com.shopsphere.model.*;
 import com.shopsphere.repository.OrderRepository;
 import com.shopsphere.repository.PaymentRepository;
 import com.shopsphere.service.PaymentService;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,8 +18,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepo;
     private final OrderRepository orderRepo;
 
-    public PaymentServiceImpl(PaymentRepository paymentRepo,
-                              OrderRepository orderRepo) {
+    public PaymentServiceImpl(
+            PaymentRepository paymentRepo,
+            OrderRepository orderRepo) {
+
         this.paymentRepo = paymentRepo;
         this.orderRepo = orderRepo;
     }
@@ -29,20 +33,31 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponseDto createPayment(Long orderId, String method) {
 
         if (paymentRepo.existsByOrder_Id(orderId)) {
-            throw new RuntimeException("Payment already exists for this order");
+            throw new RuntimeException(
+                    "Payment already exists for this order"
+            );
         }
 
         Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with id: " + orderId));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Order not found with id: " + orderId
+                        )
+                );
 
         Payment payment = new Payment();
+
         payment.setOrder(order);
         payment.setAmount(order.getTotalAmount());
         payment.setMethod(method);
 
-        // 🔥 FIX: always start with PENDING
+        // Payment starts in PENDING state
         payment.setStatus(PaymentStatus.PENDING);
-        payment.setTransactionId("TXN" + System.currentTimeMillis());
+
+        // Preserve existing transaction ID generation
+        payment.setTransactionId(
+                "TXN" + System.currentTimeMillis()
+        );
 
         Payment saved = paymentRepo.save(payment);
 
@@ -53,16 +68,59 @@ public class PaymentServiceImpl implements PaymentService {
     // UPDATE PAYMENT STATUS
     // =========================
     @Override
-    public PaymentResponseDto updatePaymentStatus(Long id, String status) {
+    @Transactional
+    public PaymentResponseDto updatePaymentStatus(
+            Long id,
+            String status) {
 
         Payment payment = paymentRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Payment not found with id: " + id
+                        )
+                );
 
-        PaymentStatus newStatus = PaymentStatus.valueOf(status.toUpperCase());
+        // Validate the requested status
+        if (status == null || status.trim().isEmpty()) {
+            throw new RuntimeException(
+                    "Payment status cannot be empty"
+            );
+        }
 
+        PaymentStatus newStatus;
+
+        try {
+            newStatus = PaymentStatus.valueOf(
+                    status.trim().toUpperCase()
+            );
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException(
+                    "Invalid payment status: " + status
+            );
+        }
+
+        // Update payment status
         payment.setStatus(newStatus);
 
         Payment updated = paymentRepo.save(payment);
+
+        // Update associated order after successful payment
+        if (newStatus == PaymentStatus.SUCCESS) {
+
+            Order order = updated.getOrder();
+
+            if (order == null) {
+                throw new RuntimeException(
+                        "Order not found for payment ID: " + id
+                );
+            }
+
+            // Successful payment confirms the order.
+            // Delivery status must be updated separately.
+            order.setStatus(OrderStatus.CONFIRMED);
+
+            orderRepo.save(order);
+        }
 
         return mapToDTO(updated);
     }
@@ -86,13 +144,17 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponseDto getPaymentById(Long id) {
 
         Payment payment = paymentRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Payment not found with id: " + id
+                        )
+                );
 
         return mapToDTO(payment);
     }
 
     // =========================
-    // GET BY USER
+    // GET PAYMENTS BY USER
     // =========================
     @Override
     public List<PaymentResponseDto> getPaymentsByUser(Long userId) {
@@ -107,36 +169,50 @@ public class PaymentServiceImpl implements PaymentService {
     // REFUND
     // =========================
     @Override
+    @Transactional
     public String refundPayment(Long paymentId) {
 
         Payment payment = paymentRepo.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Payment not found"
+                        )
+                );
 
         if (payment.getStatus() != PaymentStatus.SUCCESS) {
-            throw new RuntimeException("Refund allowed only for SUCCESS payments");
+            throw new RuntimeException(
+                    "Refund allowed only for SUCCESS payments"
+            );
         }
 
         payment.setStatus(PaymentStatus.REFUNDED);
+
         paymentRepo.save(payment);
 
         return "Refund successful";
     }
 
     // =========================
-    // REVENUE
+    // TOTAL REVENUE
     // =========================
     @Override
     public double getTotalRevenue() {
 
         return paymentRepo.findAll()
                 .stream()
-                .filter(p -> p.getStatus() == PaymentStatus.SUCCESS)
+                .filter(p ->
+                        p.getStatus() == PaymentStatus.SUCCESS
+                )
                 .mapToDouble(Payment::getAmount)
                 .sum();
     }
 
+    // =========================
+    // TOTAL PAYMENTS
+    // =========================
     @Override
     public long getTotalPayments() {
+
         return paymentRepo.count();
     }
 
@@ -150,6 +226,7 @@ public class PaymentServiceImpl implements PaymentService {
                 : null;
 
         PaymentResponseDto dto = new PaymentResponseDto();
+
         dto.setPaymentId(payment.getId());
         dto.setStatus(payment.getStatus().name());
         dto.setAmount(payment.getAmount());

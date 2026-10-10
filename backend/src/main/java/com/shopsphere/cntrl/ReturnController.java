@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/returns")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+    "http://localhost:5173",
+    "https://dazzling-delight-production-e0f8.up.railway.app"
+})
 public class ReturnController {
 
     private final ReturnService returnService;
