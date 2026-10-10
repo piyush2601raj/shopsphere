@@ -247,6 +247,11 @@ function TrackOrder() {
           updatedOrder.statusStartedAt = realOrderDate;
         }
 
+        // Accelerated demo clock starts once and persists across refreshes.
+        if (!updatedOrder.demoStartedAt) {
+          updatedOrder.demoStartedAt = new Date().toISOString();
+        }
+
         // ================= DELIVERY BOY =================
 
         if (!updatedOrder.deliveryBoy) {
@@ -407,92 +412,48 @@ function TrackOrder() {
     loadOrder();
   }, [id]);
 
-  // ================= AUTO STATUS UPDATE =================
-
+  // ================= ACCELERATED DEMO STATUS TIMER =================
+  // Each stage advances every 10 seconds (total demo: 40 seconds).
+  // Stage timestamps are persisted in localStorage so refreshes do not reset the demo.
   useEffect(() => {
-    if (!order?.statusStartedAt) {
-      return;
-    }
+    if (!order?.demoStartedAt || status === "CANCELLED") return;
 
-    if (
-      status === "CANCELLED" ||
-      status === "DELIVERED"
-    ) {
-      return;
-    }
+    const updateDemoStatus = () => {
+      const startedAt = new Date(order.demoStartedAt).getTime();
+      if (Number.isNaN(startedAt)) return;
 
-    const updateOrderStatus = () => {
-      const startTime = new Date(
-        order.statusStartedAt
-      ).getTime();
+      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      const stages = [
+        { status: "CONFIRMED", seconds: 0, field: null },
+        { status: "PACKED", seconds: 10, field: "packedAt" },
+        { status: "SHIPPED", seconds: 20, field: "shippedAt" },
+        { status: "OUT_FOR_DELIVERY", seconds: 30, field: "outForDeliveryAt" },
+        { status: "DELIVERED", seconds: 40, field: "deliveredAt" },
+      ];
+      const currentStage = [...stages].reverse().find((stage) => elapsedSeconds >= stage.seconds) || stages[0];
+      const updatedOrder = { ...order };
 
-      if (Number.isNaN(startTime)) {
-        return;
-      }
+      stages.forEach((stage) => {
+        if (stage.field && elapsedSeconds >= stage.seconds && !updatedOrder[stage.field]) {
+          updatedOrder[stage.field] = new Date(startedAt + stage.seconds * 1000).toISOString();
+        }
+      });
+      updatedOrder.status = currentStage.status;
 
-      const elapsedDays = Math.floor(
-        (Date.now() - startTime) / (24 * 60 * 60 * 1000)
-      );
-
-      let newStatus = "CONFIRMED";
-
-      // Realistic multi-day demo flow:
-      // Day 0 = Confirmed, Day 1 = Packed, Day 2 = Shipped,
-      // Day 4 = Out For Delivery, Day 5 = Delivered.
-      // This keeps the live status aligned with Expected Delivery.
-      if (elapsedDays >= 5) {
-        newStatus = "DELIVERED";
-      } else if (elapsedDays >= 4) {
-        newStatus = "OUT_FOR_DELIVERY";
-      } else if (elapsedDays >= 2) {
-        newStatus = "SHIPPED";
-      } else if (elapsedDays >= 1) {
-        newStatus = "PACKED";
-      }
-
-      if (newStatus !== status) {
-        const updatedOrder = {
-          ...order,
-          status: newStatus,
-        };
-
-        // Keep frontend demo status and Spring Boot database
-        // status synchronized.
-        axios
-          .put(
-            `http://localhost:8080/orders/${order.id}/status`,
-            null,
-            {
-              params: {
-                status: newStatus,
-              },
-            }
-          )
-          .then(() => {
-            updateOrderInStorage(updatedOrder);
-            setOrder(updatedOrder);
-            setStatus(newStatus);
-          })
-          .catch((error) => {
-            console.error(
-              `Failed to sync order status ${newStatus} with backend:`,
-              error
-            );
-          });
+      const changed = updatedOrder.status !== order.status ||
+        stages.some((stage) => stage.field && updatedOrder[stage.field] !== order[stage.field]);
+      if (changed) {
+        updateOrderInStorage(updatedOrder);
+        setOrder(updatedOrder);
+        setStatus(currentStage.status);
       }
     };
 
-    updateOrderStatus();
+    updateDemoStatus();
+    const intervalId = setInterval(updateDemoStatus, 1000);
+    return () => clearInterval(intervalId);
+  }, [order?.id, order?.demoStartedAt, order?.status, order?.packedAt, order?.shippedAt, order?.outForDeliveryAt, order?.deliveredAt, status]);
 
-    const intervalId = setInterval(
-      updateOrderStatus,
-      1000
-    );
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [order?.statusStartedAt, status]);
   // ================= REAL RETURN STATUS POLLING =================
 
   useEffect(() => {
@@ -799,22 +760,20 @@ function TrackOrder() {
     parseOrderDate(order?.statusStartedAt) ||
     new Date();
 
-  const createDemoDate = (days) => {
-    const date = new Date(orderStartDate);
-    date.setDate(date.getDate() + days);
-    return date;
-  };
+  const demoStartDate = parseOrderDate(order?.demoStartedAt) || orderStartDate;
+  const createDemoDate = (seconds) =>
+    new Date(demoStartDate.getTime() + seconds * 1000);
 
   const orderedDate =
     parseOrderDate(order?.orderDate) ||
     parseOrderDate(order?.orderedAt) ||
     orderStartDate;
-  const packedDate = parseOrderDate(order?.packedAt) || createDemoDate(1);
-  const shippedDate = parseOrderDate(order?.shippedAt) || createDemoDate(2);
+  const packedDate = parseOrderDate(order?.packedAt) || createDemoDate(10);
+  const shippedDate = parseOrderDate(order?.shippedAt) || createDemoDate(20);
   const outForDeliveryDate =
-    parseOrderDate(order?.outForDeliveryAt) || createDemoDate(4);
+    parseOrderDate(order?.outForDeliveryAt) || createDemoDate(30);
   const deliveredDate =
-    parseOrderDate(order?.deliveredAt) || createDemoDate(5);
+    parseOrderDate(order?.deliveredAt) || createDemoDate(40);
 
   // ================= RETURN DEMO DATES =================
   // Displayed dates/times are intentionally different for each stage.

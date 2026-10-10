@@ -466,13 +466,23 @@ const OrderTimeline = ({
                         {/* ================= DATE ================= */}
 
 
-                        {stage.date && (
-                          <small className="text-muted d-block">
-                            {completed
-                              ? formatDate(stage.date)
-                              : `Estimated: ${formatDate(stage.date)}`}
-                          </small>
-                        )}
+                        {completed &&
+                          stage.date && (
+
+                            <small
+                              className="
+                                text-muted
+                                d-block
+                              "
+                            >
+
+                              {formatDate(
+                                stage.date
+                              )}
+
+                            </small>
+
+                          )}
 
 
                         {/* ================= DESCRIPTION ================= */}
