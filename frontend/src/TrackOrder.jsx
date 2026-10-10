@@ -3,6 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import ProductImage from "./ProductImage";
 import axios from "axios";
 
+// Configure VITE_API_URL to your deployed Spring Boot backend URL in production.
+// Example: https://your-backend.up.railway.app
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8080").replace(/\/$/, "");
+
 import OrderTimeline from "./Components/OrderTimeline";
 import DeliveryDetails from "./Components/DeliveryDetails";
 import ReturnRefund from "./Components/ReturnRefundFixed";
@@ -320,7 +324,7 @@ function TrackOrder() {
 
         try {
           const returnResponse = await axios.get(
-            `http://localhost:8080/api/returns/order/${selectedOrder.id}`
+            `${API_BASE_URL}/api/returns/order/${selectedOrder.id}`
           );
 
           const backendReturn = returnResponse.data;
@@ -489,7 +493,7 @@ function TrackOrder() {
     const loadReturnStatus = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/returns/order/${order.id}`
+          `${API_BASE_URL}/api/returns/order/${order.id}`
         );
 
         if (cancelled) return;
@@ -664,7 +668,7 @@ function TrackOrder() {
         }
 
         const response = await axios.put(
-          `http://localhost:8080/api/returns/${returnId}/status`,
+          `${API_BASE_URL}/api/returns/${returnId}/status`,
           null,
           {
             params: {
@@ -1025,7 +1029,7 @@ function TrackOrder() {
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/returns",
+        `${API_BASE_URL}/api/returns`,
         null,
         {
           params: {
