@@ -826,10 +826,11 @@ function TrackOrder() {
         }
       : null;
 
-  // In the accelerated demo, expected delivery is 40 seconds after demo start.
-  // Format this as a date in OrderTimeline; actual stage timestamps are saved
-  // by the timer as each stage is reached.
-  const expectedDelivery = deliveredDate;
+  // Keep expected delivery realistic (5 days after order placement).
+  // The accelerated demo itself still completes in 40 seconds.
+  const expectedDelivery = new Date(
+    orderStartDate.getTime() + 5 * 24 * 60 * 60 * 1000
+  );
 
   // Return/Replacement timeline begins on the simulated
   // Delivered date, never before it.
