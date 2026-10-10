@@ -1411,10 +1411,52 @@ const Navbar = () => {
 
                       <button
                         type="button"
+                        className="btn btn-light btn-sm w-100 text-start mt-2"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          navigate("/profile");
+                        }}
+                      >
+                        👤 My Profile
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-light btn-sm w-100 text-start mt-1"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          navigate("/orders");
+                        }}
+                      >
+                        📦 My Orders
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-light btn-sm w-100 text-start mt-1"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          navigate("/wishlist");
+                        }}
+                      >
+                        ❤️ My Wishlist
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-light btn-sm w-100 text-start mt-1"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          navigate("/cart");
+                        }}
+                      >
+                        🛒 My Cart
+                      </button>
+
+                      <button
+                        type="button"
                         className="btn btn-outline-danger btn-sm w-100 mt-2"
-                        onClick={
-                          handleLogout
-                        }
+                        onClick={handleLogout}
                       >
                         Logout
                       </button>
