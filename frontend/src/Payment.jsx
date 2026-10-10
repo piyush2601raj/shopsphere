@@ -29,19 +29,12 @@ function Payment() {
         JSON.parse(localStorage.getItem("cart")) || [];
 
       const savedAddress =
-        JSON.parse(
-          localStorage.getItem("shippingAddress")
-        ) || {};
+        JSON.parse(localStorage.getItem("shippingAddress")) || {};
 
       const savedSummary =
-        JSON.parse(
-          localStorage.getItem("checkoutSummary")
-        ) || null;
+        JSON.parse(localStorage.getItem("checkoutSummary")) || null;
 
-      setCart(
-        Array.isArray(savedCart) ? savedCart : []
-      );
-
+      setCart(Array.isArray(savedCart) ? savedCart : []);
       setAddress(savedAddress);
       setCheckoutSummary(savedSummary);
     } catch (error) {
@@ -365,7 +358,8 @@ function Payment() {
       // ================= RAZORPAY OPTIONS =================
 
       const options = {
-        // Existing Test Mode key retained.
+        // Razorpay Test Mode Key ID.
+        // This must match the backend Key ID.
         key: "rzp_test_TmNV9P9nkR5Io9",
 
         amount: razorpayOrder.amount,
