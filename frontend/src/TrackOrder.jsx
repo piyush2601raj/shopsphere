@@ -423,22 +423,23 @@ function TrackOrder() {
         return;
       }
 
-      const elapsedSeconds = Math.floor(
-        (Date.now() - startTime) / 1000
+      const elapsedDays = Math.floor(
+        (Date.now() - startTime) / (24 * 60 * 60 * 1000)
       );
 
       let newStatus = "CONFIRMED";
 
-      // DEMO ORDER FLOW: complete in 30 seconds.
-      // 0s = Confirmed, 6s = Packed, 12s = Shipped,
-      // 18s = Out For Delivery, 24s = Delivered.
-      if (elapsedSeconds >= 30) {
+      // Realistic multi-day demo flow:
+      // Day 0 = Confirmed, Day 1 = Packed, Day 2 = Shipped,
+      // Day 4 = Out For Delivery, Day 5 = Delivered.
+      // This keeps the live status aligned with Expected Delivery.
+      if (elapsedDays >= 5) {
         newStatus = "DELIVERED";
-      } else if (elapsedSeconds >= 18) {
+      } else if (elapsedDays >= 4) {
         newStatus = "OUT_FOR_DELIVERY";
-      } else if (elapsedSeconds >= 12) {
+      } else if (elapsedDays >= 2) {
         newStatus = "SHIPPED";
-      } else if (elapsedSeconds >= 6) {
+      } else if (elapsedDays >= 1) {
         newStatus = "PACKED";
       }
 
@@ -759,12 +760,9 @@ function TrackOrder() {
 
   // ================= MULTI-DAY DEMO DATE CALCULATIONS =================
   //
-  // The shipment is still simulated every 10 seconds:
-  // 0s  = Confirmed
-  // 10s = Packed
-  // 20s = Shipped
-  // 30s = Out For Delivery
-  // 40s = Delivered
+  // Shipment demo status advances over multiple days:
+  // Day 0 = Confirmed, Day 1 = Packed, Day 2 = Shipped,
+  // Day 4 = Out For Delivery, Day 5 = Delivered.
   //
   // For a realistic e-commerce display, the timeline dates are
   // shown across multiple days instead of all on the same day.
@@ -776,8 +774,8 @@ function TrackOrder() {
   // Day 4 = Out For Delivery
   // Day 5 = Delivered
   //
-  // Return/Replacement starts from the simulated Delivered date,
-  // so it can never appear before delivery.
+  // Return/Replacement starts from the expected delivery date,
+  // so its timeline never appears before the order's delivery date.
 
   const orderStartDate = order?.statusStartedAt
     ? new Date(order.statusStartedAt)
@@ -810,7 +808,6 @@ const deliveredDate =
   createDemoDate(5, 12, 20);
 
   // ================= RETURN DEMO DATES =================
-  // Demo status progression completes in 30 seconds.
   // Displayed dates/times are intentionally different for each stage.
   const createReturnDemoDate = (
     baseDate,
