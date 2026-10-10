@@ -419,10 +419,10 @@ function TrackOrder() {
     loadOrder();
   }, [id]);
 
-  // ================= MULTI-DAY DEMO STATUS TIMER =================
-  // Day 0: Confirmed, Day 1: Packed, Day 2: Shipped,
-  // Day 4: Out for Delivery, Day 5: Delivered.
-  // A stage timestamp is saved only when that stage is reached.
+  // ================= ACCELERATED DEMO STATUS TIMER =================
+  // Demo progression: Confirmed immediately, then Packed (30s), Shipped (60s),
+  // Out for Delivery (120s), Delivered (150s). Displayed timestamps use a
+  // realistic multi-day schedule and are saved only when each stage is reached.
   useEffect(() => {
     if (!order?.demoStartedAt || order?.status === "CANCELLED" || status === "CANCELLED") return;
 
@@ -430,19 +430,18 @@ function TrackOrder() {
       const startedAt = new Date(order.demoStartedAt).getTime();
       if (Number.isNaN(startedAt)) return;
 
-      const elapsedDays = Math.max(0, Math.floor((Date.now() - startedAt) / (24 * 60 * 60 * 1000)));
+      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
       const stages = [
-        { status: "CONFIRMED", day: 0, field: null },
-        { status: "PACKED", day: 1, field: "packedAt" },
-        { status: "SHIPPED", day: 2, field: "shippedAt" },
-        { status: "OUT_FOR_DELIVERY", day: 4, field: "outForDeliveryAt" },
-        { status: "DELIVERED", day: 5, field: "deliveredAt" },
+        { status: "CONFIRMED", seconds: 0, field: null },
+        { status: "PACKED", seconds: 30, field: "packedAt" },
+        { status: "SHIPPED", seconds: 60, field: "shippedAt" },
+        { status: "OUT_FOR_DELIVERY", seconds: 120, field: "outForDeliveryAt" },
+        { status: "DELIVERED", seconds: 150, field: "deliveredAt" },
       ];
-      const currentStage = [...stages].reverse().find((stage) => elapsedDays >= stage.day) || stages[0];
+      const currentStage = [...stages].reverse().find((stage) => elapsedSeconds >= stage.seconds) || stages[0];
       const updatedOrder = { ...order };
 
-      // Give each completed stage a distinct, stable demo time.
-      // These timestamps are saved once when the stage is reached.
+      // Simulated event timestamps: distinct dates and times, stored once per stage.
       const stageTimeOffsets = {
         packedAt: { days: 1, hours: 9, minutes: 30 },
         shippedAt: { days: 2, hours: 11, minutes: 45 },
@@ -451,10 +450,9 @@ function TrackOrder() {
       };
 
       stages.forEach((stage) => {
-        if (stage.field && elapsedDays >= stage.day && !updatedOrder[stage.field]) {
+        if (stage.field && elapsedSeconds >= stage.seconds && !updatedOrder[stage.field]) {
           const offset = stageTimeOffsets[stage.field];
           const stageDate = new Date(startedAt);
-
           if (offset) {
             stageDate.setDate(stageDate.getDate() + offset.days);
             stageDate.setHours(offset.hours, offset.minutes, 0, 0);
@@ -462,8 +460,8 @@ function TrackOrder() {
           }
         }
       });
-      updatedOrder.status = currentStage.status;
 
+      updatedOrder.status = currentStage.status;
       const changed = updatedOrder.status !== order.status ||
         stages.some((stage) => stage.field && updatedOrder[stage.field] !== order[stage.field]);
       if (changed) {
@@ -474,7 +472,7 @@ function TrackOrder() {
     };
 
     updateDemoStatus();
-    const intervalId = setInterval(updateDemoStatus, 60 * 1000);
+    const intervalId = setInterval(updateDemoStatus, 1000);
     return () => clearInterval(intervalId);
   }, [order?.id, order?.demoStartedAt, order?.status, order?.packedAt, order?.shippedAt, order?.outForDeliveryAt, order?.deliveredAt, status]);
 
