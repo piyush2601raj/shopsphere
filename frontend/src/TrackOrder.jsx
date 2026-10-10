@@ -6,9 +6,6 @@ import axios from "axios";
 import OrderTimeline from "./Components/OrderTimeline";
 import DeliveryDetails from "./Components/DeliveryDetails";
 import ReturnRefund from "./Components/ReturnRefundFixed";
-
-// Configure this in the frontend deployment environment.
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 function TrackOrder() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -230,17 +227,24 @@ function TrackOrder() {
 
         // ================= DEMO TIMER START =================
 
-        if (!updatedOrder.statusStartedAt) {
-          updatedOrder.statusStartedAt =
-            new Date().toISOString();
+        // Preserve the real order-placement timestamp. The demo timeline
+        // must start from the order date, not from the time tracking is opened.
+        const realOrderDate =
+          updatedOrder.orderDate ||
+          updatedOrder.orderedAt ||
+          updatedOrder.createdAt ||
+          new Date().toISOString();
+
+        if (!updatedOrder.orderDate) {
+          updatedOrder.orderDate = realOrderDate;
         }
 
-        // ================= REAL ORDER DATE =================
-
         if (!updatedOrder.orderedAt) {
-          updatedOrder.orderedAt =
-            updatedOrder.orderDate ||
-            new Date().toISOString();
+          updatedOrder.orderedAt = realOrderDate;
+        }
+
+        if (!updatedOrder.statusStartedAt) {
+          updatedOrder.statusStartedAt = realOrderDate;
         }
 
         // ================= DELIVERY BOY =================
@@ -303,7 +307,7 @@ function TrackOrder() {
 
         try {
           const returnResponse = await axios.get(
-            `${API_BASE_URL}/api/returns/order/${selectedOrder.id}`
+            `http://localhost:8080/api/returns/order/${selectedOrder.id}`
           );
 
           const backendReturn = returnResponse.data;
@@ -456,7 +460,7 @@ function TrackOrder() {
         // status synchronized.
         axios
           .put(
-            `${API_BASE_URL}/orders/${order.id}/status`,
+            `http://localhost:8080/orders/${order.id}/status`,
             null,
             {
               params: {
@@ -501,7 +505,7 @@ function TrackOrder() {
     const loadReturnStatus = async () => {
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/api/returns/order/${order.id}`
+          `http://localhost:8080/api/returns/order/${order.id}`
         );
 
         if (cancelled) return;
@@ -676,7 +680,7 @@ function TrackOrder() {
         }
 
         const response = await axios.put(
-          `${API_BASE_URL}/api/returns/${returnId}/status`,
+          `http://localhost:8080/api/returns/${returnId}/status`,
           null,
           {
             params: {
@@ -780,35 +784,37 @@ function TrackOrder() {
   // Return/Replacement starts from the expected delivery date,
   // so its timeline never appears before the order's delivery date.
 
-  const orderStartDate = order?.statusStartedAt
-    ? new Date(order.statusStartedAt)
-    : order?.orderedAt
-    ? new Date(order.orderedAt)
-    : new Date();
+  // The order timestamp is the source of truth for the timeline.
+  // Later stages use the demo schedule but preserve the real order time;
+  // when the backend provides actual stage timestamps, those take priority.
+  const parseOrderDate = (value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
-  const createDemoDate = (days, hour, minute) => {
-  const date = new Date(orderStartDate);
+  const orderStartDate =
+    parseOrderDate(order?.orderDate) ||
+    parseOrderDate(order?.orderedAt) ||
+    parseOrderDate(order?.statusStartedAt) ||
+    new Date();
 
-  date.setDate(date.getDate() + days);
-  date.setHours(hour, minute, 0, 0);
+  const createDemoDate = (days) => {
+    const date = new Date(orderStartDate);
+    date.setDate(date.getDate() + days);
+    return date;
+  };
 
-  return date;
-};
-  // Multi-day demo status dates
   const orderedDate =
-  createDemoDate(0, 9, 15);
-
-const packedDate =
-  createDemoDate(1, 11, 40);
-
-const shippedDate =
-  createDemoDate(2, 14, 5);
-
-const outForDeliveryDate =
-  createDemoDate(4, 17, 30);
-
-const deliveredDate =
-  createDemoDate(5, 12, 20);
+    parseOrderDate(order?.orderDate) ||
+    parseOrderDate(order?.orderedAt) ||
+    orderStartDate;
+  const packedDate = parseOrderDate(order?.packedAt) || createDemoDate(1);
+  const shippedDate = parseOrderDate(order?.shippedAt) || createDemoDate(2);
+  const outForDeliveryDate =
+    parseOrderDate(order?.outForDeliveryAt) || createDemoDate(4);
+  const deliveredDate =
+    parseOrderDate(order?.deliveredAt) || createDemoDate(5);
 
   // ================= RETURN DEMO DATES =================
   // Displayed dates/times are intentionally different for each stage.
@@ -1041,7 +1047,7 @@ const deliveredDate =
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/returns`,
+        "http://localhost:8080/api/returns",
         null,
         {
           params: {
