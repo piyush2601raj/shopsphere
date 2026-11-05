@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
+import API from "./axios";
 
 import { getProductById, addToCart } from "./dataService";
 
@@ -340,13 +341,9 @@ function AIChatbot() {
             // CALL AI BACKEND
             // =================================================
 
-            const response =
-    await axios.get(
-        "https://shopsphere-backend-production-c62b.up.railway.app/api/ai/chat",
-        {
-            params: params
-        }
-    );
+          const response = await API.get("/api/ai/chat", {
+    params: params
+});
 
 
             // =================================================
