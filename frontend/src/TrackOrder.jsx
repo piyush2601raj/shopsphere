@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ProductImage from "./ProductImage";
-import axios from "axios";
+import API from "./axios";
 import OrderTimeline from "./Components/OrderTimeline";
 import DeliveryDetails from "./Components/DeliveryDetails";
 import ReturnRefund from "./Components/ReturnRefundFixed";
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  "https://shopsphere-backend-production-c62b.up.railway.app"
-).replace(/\/+$/, "");
 
 function TrackOrder() {
   const { id } = useParams();
@@ -324,9 +320,9 @@ function TrackOrder() {
         // =====================================================
 
         try {
-          const returnResponse = await axios.get(
-            `${API_BASE_URL}/api/returns/order/${selectedOrder.id}`
-          );
+          const response = await axios.get(
+  `${API_BASE_URL}/api/returns/order/${order.id}`
+);
 
           const backendReturn = returnResponse.data;
 
@@ -493,9 +489,9 @@ function TrackOrder() {
 
     const loadReturnStatus = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/returns/order/${order.id}`
-        );
+      const response = await API.get(
+  `/api/returns/order/${order.id}`
+);
 
         if (cancelled) return;
 
@@ -668,16 +664,15 @@ function TrackOrder() {
           return;
         }
 
-        const response = await axios.put(
-          `${API_BASE_URL}/api/returns/${returnId}/status`,
-          null,
-          {
-            params: {
-              status: newBackendStatus,
-            },
-          }
-        );
-
+        const response = await API.put(
+  `/api/returns/${returnId}/status`,
+  null,
+  {
+    params: {
+      status: newBackendStatus,
+    },
+  }
+);
         if (cancelled) {
           return;
         }
@@ -1029,22 +1024,22 @@ function TrackOrder() {
     }
 
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/returns`,
-        null,
-        {
-          params: {
-            orderId: order.id,
-            action: selectedAction,
-            reason: returnReason,
-            comment: returnComment,
-            pickupPartner:
-              deliveryBoy?.partner ||
-              order?.deliveryBoy?.partner ||
-              "Ekart Logistics",
-          },
-        }
-      );
+      const response = await API.post(
+  "/api/returns",
+  null,
+  {
+    params: {
+      orderId: order.id,
+      action: selectedAction,
+      reason: returnReason,
+      comment: returnComment,
+      pickupPartner:
+        deliveryBoy?.partner ||
+        order?.deliveryBoy?.partner ||
+        "Ekart Logistics",
+    },
+  }
+);
 
       const savedReturn = response.data;
 
