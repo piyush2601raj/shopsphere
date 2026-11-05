@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "./axios";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -84,10 +85,9 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // IMPORTANT:
-      // Backend endpoint is /users/register
-      const response = await axios.post(
-        "https://shopsphere-backend-production-c62b.up.railway.app/users/register",
+      // Backend endpoint: /users/register
+      const response = await API.post(
+        "/users/register",
         {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -353,3 +353,4 @@ const Register = () => {
 };
 
 export default Register;
+
