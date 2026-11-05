@@ -1,12 +1,8 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "./axios";
 import ProductImage from "./ProductImage";
-
-// ================= BACKEND URL =================
-
-const API_BASE_URL =
-  "https://shopsphere-backend-production-c62b.up.railway.app";
 
 function Payment() {
   const navigate = useNavigate();
@@ -195,8 +191,8 @@ function Payment() {
 
     // ================= CREATE BACKEND ORDER =================
 
-    const response = await axios.post(
-      `${API_BASE_URL}/orders/place/${userId}`
+    const response = await API.post(
+      `/orders/place/${userId}`
     );
 
     console.log(
@@ -218,9 +214,7 @@ function Payment() {
       JSON.parse(localStorage.getItem("orders")) || [];
 
     const newOrder = {
-      // Use the real database order ID.
       id: backendOrder.orderId,
-
       items: cart,
       address,
       paymentMethod,
@@ -329,8 +323,8 @@ function Payment() {
 
       console.log("Creating Razorpay Order...");
 
-      const response = await axios.post(
-        `${API_BASE_URL}/payments/create-order`,
+      const response = await API.post(
+        "/payments/create-order",
         {
           amount: priceDetails.totalAmount,
         }
@@ -358,8 +352,6 @@ function Payment() {
       // ================= RAZORPAY OPTIONS =================
 
       const options = {
-        // Razorpay Test Mode Key ID.
-        // This must match the backend Key ID.
         key: "rzp_test_TmNV9P9nkR5Io9",
 
         amount: razorpayOrder.amount,
@@ -391,8 +383,8 @@ function Payment() {
 
             // ================= VERIFY PAYMENT =================
 
-            const verifyResponse = await axios.post(
-              `${API_BASE_URL}/payments/verify`,
+            const verifyResponse = await API.post(
+              "/payments/verify",
               {
                 orderId:
                   paymentResponse.razorpay_order_id,
@@ -509,9 +501,6 @@ function Payment() {
       await completeOrder("COD");
     } catch (error) {
       console.error("COD Order Error:", error);
-
-      // completeOrder already shows the error
-      // and resets processing.
     }
   };
 
@@ -956,3 +945,4 @@ function Payment() {
 }
 
 export default Payment;
+
